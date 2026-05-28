@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlmodel
+psycopg2-binary
+pydantic
+pydantic-settings
+sqlalchemy
+bcrypt
+pyjwt
+email-validator
+python-multipart
