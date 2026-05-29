@@ -14,6 +14,7 @@ export function ProductoCard({ producto }: { producto: Producto }) {
       producto_id: producto.id,
       nombre: producto.nombre,
       precio: producto.precio,
+      stock_cantidad: producto.stock_cantidad,
     });
   };
 

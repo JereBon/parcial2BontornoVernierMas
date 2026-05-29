@@ -21,7 +21,7 @@ interface CarritoContextValue {
   addItem: (item: Omit<CartItem, 'cantidad'>, cantidad?: number) => void;
   removeItem: (producto_id: number) => void;
   setQty: (producto_id: number, cantidad: number) => void;
-  setPrice: (producto_id: number, precio: number, nombre?: string) => void;
+  setPrice: (producto_id: number, precio: number, nombre?: string, stock_cantidad?: number) => void;
   clear: () => void;
 }
 
@@ -56,8 +56,8 @@ export function CarritoProvider({ children }: { children: ReactNode }) {
   );
 
   const setPrice = useCallback(
-    (producto_id: number, precio: number, nombre?: string) =>
-      dispatch({ type: 'SET_PRECIO', producto_id, precio, nombre }),
+    (producto_id: number, precio: number, nombre?: string, stock_cantidad?: number) =>
+      dispatch({ type: 'SET_PRECIO', producto_id, precio, nombre, stock_cantidad }),
     [],
   );
 

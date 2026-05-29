@@ -15,8 +15,12 @@ export default function CarritoPage() {
       resultados.forEach((data, idx) => {
         const item = items[idx];
         if (!data || !item) return;
-        if (data.precio !== item.precio || data.nombre !== item.nombre) {
-          setPrice(item.producto_id, data.precio, data.nombre);
+        if (
+          data.precio !== item.precio ||
+          data.nombre !== item.nombre ||
+          data.stock_cantidad !== item.stock_cantidad
+        ) {
+          setPrice(item.producto_id, data.precio, data.nombre, data.stock_cantidad);
         }
       });
     } catch {
@@ -66,11 +70,13 @@ export default function CarritoPage() {
                     <input
                       type="number"
                       min="1"
-                      max="99"
+                      max={i.stock_cantidad}
                       className="input text-center"
                       value={i.cantidad}
                       onFocus={(e) => e.target.select()}
-                      onChange={(e) => setQty(i.producto_id, Math.max(1, Number(e.target.value)))}
+                      onChange={(e) =>
+                        setQty(i.producto_id, Math.max(1, Math.min(Number(e.target.value), i.stock_cantidad)))
+                      }
                     />
                   </td>
                   <td className="px-4 py-3 text-right font-semibold">${(i.precio * i.cantidad).toFixed(2)}</td>

@@ -3,6 +3,7 @@ export interface CartItem {
   nombre: string;
   precio: number;
   cantidad: number;
+  stock_cantidad: number;
 }
 
 export interface CarritoState {
@@ -13,7 +14,7 @@ export type CarritoAction =
   | { type: 'AGREGAR'; item: Omit<CartItem, 'cantidad'>; cantidad?: number }
   | { type: 'QUITAR'; producto_id: number }
   | { type: 'SET_CANTIDAD'; producto_id: number; cantidad: number }
-  | { type: 'SET_PRECIO'; producto_id: number; precio: number; nombre?: string }
+  | { type: 'SET_PRECIO'; producto_id: number; precio: number; nombre?: string; stock_cantidad?: number }
   | { type: 'VACIAR' }
   | { type: 'HIDRATAR'; state: CarritoState };
 
@@ -23,34 +24,44 @@ export function carritoReducer(state: CarritoState, action: CarritoAction): Carr
   switch (action.type) {
     case 'AGREGAR': {
       const qty = Math.max(1, action.cantidad ?? 1);
+      const stock = action.item.stock_cantidad;
       const existing = state.items.find((i) => i.producto_id === action.item.producto_id);
       if (existing) {
+        const newQty = Math.min(existing.cantidad + qty, stock);
         return {
           items: state.items.map((i) =>
             i.producto_id === action.item.producto_id
-              ? { ...i, cantidad: i.cantidad + qty }
+              ? { ...i, cantidad: newQty }
               : i,
           ),
         };
       }
-      return { items: [...state.items, { ...action.item, cantidad: qty }] };
+      return { items: [...state.items, { ...action.item, cantidad: Math.min(qty, stock) }] };
     }
     case 'QUITAR':
       return { items: state.items.filter((i) => i.producto_id !== action.producto_id) };
-    case 'SET_CANTIDAD':
+    case 'SET_CANTIDAD': {
       if (action.cantidad <= 0) {
         return { items: state.items.filter((i) => i.producto_id !== action.producto_id) };
       }
       return {
         items: state.items.map((i) =>
-          i.producto_id === action.producto_id ? { ...i, cantidad: action.cantidad } : i,
+          i.producto_id === action.producto_id
+            ? { ...i, cantidad: Math.min(action.cantidad, i.stock_cantidad) }
+            : i,
         ),
       };
+    }
     case 'SET_PRECIO':
       return {
         items: state.items.map((i) =>
           i.producto_id === action.producto_id
-            ? { ...i, precio: action.precio, nombre: action.nombre ?? i.nombre }
+            ? {
+                ...i,
+                precio: action.precio,
+                nombre: action.nombre ?? i.nombre,
+                stock_cantidad: action.stock_cantidad ?? i.stock_cantidad,
+              }
             : i,
         ),
       };

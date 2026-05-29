@@ -28,7 +28,7 @@ export default function PedidosPage() {
   const { pedidos, total, cargando, error, cargar } = usePedidos();
 
   const recargar = useCallback(() => {
-    cargar({ skip: offset, limit: LIMIT, estado: estadoParam ?? estado ?? undefined });
+    cargar({ skip: offset, limit: LIMIT, estado: estadoParam ?? (estado || undefined) });
   }, [cargar, offset, estadoParam, estado]);
 
   useEffect(() => {
