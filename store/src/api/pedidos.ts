@@ -15,8 +15,8 @@ export interface PedidoInput {
 }
 
 export interface PedidoFilters {
-  skip?: number;
-  limit?: number;
+  page?: number;
+  size?: number;
   estado?: EstadoPedidoCodigo;
 }
 
@@ -33,6 +33,11 @@ export const pedidosApi = {
   cancelar: (id: number, motivo?: string) =>
     api.post<PedidoFull>(`/pedidos/${id}/cancelar`, { motivo }).then((r) => r.data),
 
-  mpPreference: (id: number) =>
-    api.post<{ preference_id: string; init_point: string }>(`/pedidos/${id}/mp-preference`).then((r) => r.data),
+  crearPago: (pedido_id: number) =>
+    api
+      .post<{ preference_id: string; init_point: string; id: number }>('/pagos/crear', { pedido_id })
+      .then((r) => r.data),
+
+  getPago: (pedido_id: number) =>
+    api.get(`/pagos/${pedido_id}`).then((r) => r.data),
 };

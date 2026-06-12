@@ -3,7 +3,7 @@ import type { EstadoPedidoCodigo } from '../api/types';
 const LABEL: Record<EstadoPedidoCodigo, string> = {
   PENDIENTE: 'Pendiente',
   CONFIRMADO: 'Confirmado',
-  EN_PREPARACION: 'En preparacion',
+  EN_PREP: 'En preparacion',
   ENTREGADO: 'Entregado',
   CANCELADO: 'Cancelado',
 };
@@ -11,7 +11,7 @@ const LABEL: Record<EstadoPedidoCodigo, string> = {
 const CLASS: Record<EstadoPedidoCodigo, string> = {
   PENDIENTE: 'badge-pendiente',
   CONFIRMADO: 'badge-confirmado',
-  EN_PREPARACION: 'badge-prep',
+  EN_PREP: 'badge-prep',
   ENTREGADO: 'badge-entregado',
   CANCELADO: 'badge-cancelado',
 };

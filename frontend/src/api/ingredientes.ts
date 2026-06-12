@@ -10,7 +10,7 @@ export interface IngredienteInput {
 }
 
 export const ingredientesApi = {
-  list: (params: { skip?: number; limit?: number; nombre?: string } = {}) =>
+  list: (params: { page?: number; size?: number; nombre?: string } = {}) =>
     api
       .get<Paginated<Ingrediente>>('/ingredientes/', { params })
       .then((r) => r.data),

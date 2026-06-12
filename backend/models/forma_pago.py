@@ -6,9 +6,8 @@ from sqlalchemy import Column, String
 
 class FormaPagoCodigo(str, Enum):
     EFECTIVO = "EFECTIVO"
-    TARJETA = "TARJETA"
     TRANSFERENCIA = "TRANSFERENCIA"
-    MERCADO_PAGO = "MERCADO_PAGO"
+    MERCADOPAGO = "MERCADOPAGO"
 
 
 class FormaPago(SQLModel, table=True):

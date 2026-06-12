@@ -8,16 +8,16 @@ import { EstadoBadge } from '../components/EstadoBadge';
 
 const NEXT: Partial<Record<EstadoPedidoCodigo, EstadoPedidoCodigo>> = {
   PENDIENTE: 'CONFIRMADO',
-  CONFIRMADO: 'EN_PREPARACION',
-  EN_PREPARACION: 'ENTREGADO',
+  CONFIRMADO: 'EN_PREP',
+  EN_PREP: 'ENTREGADO',
 };
 
-const COLUMNS: EstadoPedidoCodigo[] = ['PENDIENTE', 'CONFIRMADO', 'EN_PREPARACION'];
+const COLUMNS: EstadoPedidoCodigo[] = ['PENDIENTE', 'CONFIRMADO', 'EN_PREP'];
 
 const LABEL: Record<string, string> = {
   PENDIENTE: 'Pendiente',
   CONFIRMADO: 'Confirmado',
-  EN_PREPARACION: 'En preparación',
+  EN_PREP: 'En preparación',
   ENTREGADO: 'Entregado',
   CANCELADO: 'Cancelado',
 };
@@ -67,7 +67,7 @@ interface ColProps {
 function ColumnaEstado({ estado, label, siguiente, isPending, onAdvance }: ColProps) {
   const q = useQuery({
     queryKey: ['pedidos', 'cajero', estado],
-    queryFn: () => pedidosApi.listAll({ estado, limit: 50 }),
+    queryFn: () => pedidosApi.listAll({ estado, size: 50 }),
     // Polling removed — data is refreshed via WebSocket invalidation in useAdminOrdersFeed
   });
 

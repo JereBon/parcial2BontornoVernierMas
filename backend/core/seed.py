@@ -27,17 +27,16 @@ ROLES = [
 ESTADOS = [
     (EstadoPedidoCodigo.PENDIENTE.value, "Pendiente", 1, False),
     (EstadoPedidoCodigo.CONFIRMADO.value, "Confirmado", 2, False),
-    (EstadoPedidoCodigo.EN_PREPARACION.value, "En preparacion", 3, False),
+    (EstadoPedidoCodigo.EN_PREP.value, "En preparacion", 3, False),
     (EstadoPedidoCodigo.ENTREGADO.value, "Entregado", 4, True),
     (EstadoPedidoCodigo.CANCELADO.value, "Cancelado", 5, True),
 ]
 
 # (codigo, descripcion, habilitado)
 FORMAS_PAGO = [
+    (FormaPagoCodigo.MERCADOPAGO.value, "Mercado Pago", True),
     (FormaPagoCodigo.EFECTIVO.value, "Efectivo", True),
-    (FormaPagoCodigo.TARJETA.value, "Tarjeta", True),
     (FormaPagoCodigo.TRANSFERENCIA.value, "Transferencia", True),
-    (FormaPagoCodigo.MERCADO_PAGO.value, "Mercado Pago", True),
 ]
 
 # (nombre, simbolo, tipo)

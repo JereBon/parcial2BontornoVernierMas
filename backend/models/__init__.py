@@ -91,6 +91,7 @@ class Producto(SQLModel, table=True):
         sa_column=Column(ARRAY(Text), nullable=True),
     )
     disponible: bool = Field(default=True, index=True)
+    stock_cantidad: int = Field(default=0, ge=0)
     unidad_venta_id: Optional[int] = Field(default=None, foreign_key="unidad_medida.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

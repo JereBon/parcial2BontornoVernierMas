@@ -54,8 +54,8 @@ export default function CatalogoPage() {
     : getDescendantIds(categoriasQ.data, Number(categoriaId));
 
   const filters = {
-    skip: offset,
-    limit: LIMIT,
+    page: Math.floor(offset / LIMIT) + 1,
+    size: LIMIT,
     nombre: search || undefined,
     categoria_ids: categoria_ids?.length ? categoria_ids : undefined,
     precio_max: precioMax === '' ? undefined : Number(precioMax),

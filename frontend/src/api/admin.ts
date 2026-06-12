@@ -18,7 +18,7 @@ export interface UsuarioAdminUpdateInput {
 }
 
 export const adminApi = {
-  listUsuarios: (params: { skip?: number; limit?: number; rol?: string; busqueda?: string } = {}) =>
+  listUsuarios: (params: { page?: number; size?: number; rol?: string; busqueda?: string } = {}) =>
     api.get<Paginated<UsuarioAdmin>>('/admin/usuarios', { params }).then((r) => r.data),
 
   getUsuario: (id: number) =>

@@ -9,8 +9,8 @@ export interface CategoriaInput {
 }
 
 export interface CategoriaFilters {
-  skip?: number;
-  limit?: number;
+  page?: number;
+  size?: number;
   parent_id?: number;
   only_roots?: boolean;
 }

@@ -20,20 +20,16 @@ _admin_only = require_roles("ADMIN")
 @router.get("/", response_model=PaginatedResponse[CategoriaRead])
 def read_categorias(
     session: Session = Depends(get_session),
-    skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
     parent_id: Annotated[int | None, Query(ge=1)] = None,
     only_roots: Annotated[bool, Query()] = False,
 ):
+    skip = (page - 1) * size
     items, total = CategoriaService(session).list_paginated(
-        skip=skip, limit=limit, parent_id=parent_id, only_roots=only_roots
+        skip=skip, limit=size, parent_id=parent_id, only_roots=only_roots
     )
-    return PaginatedResponse[CategoriaRead](
-        total=total,
-        items=[CategoriaRead.model_validate(c) for c in items],
-        limit=limit,
-        offset=skip,
-    )
+    return PaginatedResponse.build([CategoriaRead.model_validate(c) for c in items], total, page, size)
 
 
 @router.get("/tree", response_model=List[CategoriaTreeNode])

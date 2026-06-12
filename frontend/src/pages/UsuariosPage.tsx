@@ -20,9 +20,10 @@ export default function UsuariosPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
 
+  const page = Math.floor(offset / LIMIT) + 1;
   const filters = {
-    skip: offset,
-    limit: LIMIT,
+    page,
+    size: LIMIT,
     rol: rolFilter || undefined,
     busqueda: busqueda.trim() || undefined,
   };

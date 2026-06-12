@@ -11,6 +11,7 @@ from ..schemas import (
     ProductoDisponibilidadUpdate,
     PaginatedResponse,
 )
+from ..schemas.catalogo import ProductoIngredienteRead, ProductoIngredienteInput, ProductoStockUpdate
 from ..models import Producto
 from ..services.producto_service import ProductoService
 from ..repositories.producto_repository import ProductoRepository, compute_stock_disponible
@@ -34,6 +35,7 @@ def _serialize_full(session: Session, prod: Producto) -> dict:
         "descripcion": prod.descripcion,
         "imagenes_url": prod.imagenes_url,
         "disponible": prod.disponible,
+        "stock_cantidad": getattr(prod, "stock_cantidad", 0),
         "stock_disponible": compute_stock_disponible(session, prod.id),
         "categorias": [
             {
@@ -85,17 +87,18 @@ def _serialize_full(session: Session, prod: Producto) -> dict:
 @router.get("/", response_model=PaginatedResponse[ProductoReadFull])
 def read_productos(
     session: Session = Depends(get_session),
-    skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
     nombre: Annotated[str | None, Query(max_length=120)] = None,
     categoria_ids: Annotated[list[int] | None, Query()] = None,
     disponible: Annotated[bool | None, Query()] = None,
     precio_min: Annotated[float | None, Query(ge=0)] = None,
     precio_max: Annotated[float | None, Query(ge=0)] = None,
 ):
+    skip = (page - 1) * size
     items, total = ProductoService(session).search(
         skip=skip,
-        limit=limit,
+        limit=size,
         nombre=nombre,
         categoria_ids=categoria_ids,
         disponible=disponible,
@@ -103,12 +106,7 @@ def read_productos(
         precio_max=precio_max,
         eager_full=True,
     )
-    return PaginatedResponse[ProductoReadFull](
-        total=total,
-        items=[_serialize_full(session, p) for p in items],
-        limit=limit,
-        offset=skip,
-    )
+    return PaginatedResponse.build([_serialize_full(session, p) for p in items], total, page, size)
 
 
 @router.get("/{producto_id}", response_model=ProductoReadFull)
@@ -177,6 +175,56 @@ def patch_imagenes(
             from fastapi import HTTPException
             raise HTTPException(404, "Producto no encontrado")
         prod.imagenes_url = payload.imagenes_url
+        uow.session.add(prod)
+        uow.session.flush()
+        return _serialize_full(uow.session, prod)
+
+
+@router.get(
+    "/{producto_id}/ingredientes",
+    response_model=List[ProductoIngredienteRead],
+    dependencies=[Depends(_admin_or_stock)],
+)
+def get_ingredientes(
+    producto_id: Annotated[int, Path(ge=1)], session: Session = Depends(get_session)
+):
+    prod = ProductoService(session).get_full(producto_id)
+    return [ProductoIngredienteRead.model_validate(pi) for pi in prod.producto_ingredientes]
+
+
+@router.post(
+    "/{producto_id}/ingredientes",
+    response_model=ProductoReadFull,
+    dependencies=[Depends(_admin_or_stock)],
+)
+def set_ingredientes(
+    producto_id: Annotated[int, Path(ge=1)],
+    payload: List[ProductoIngredienteInput],
+    session: Session = Depends(get_session),
+):
+    from ..schemas.catalogo import ProductoUpdate
+    update_payload = ProductoUpdate(ingredientes=payload)
+    with UnitOfWork(session) as uow:
+        prod = ProductoService(uow.session).update(producto_id, update_payload)
+        return _serialize_full(uow.session, prod)
+
+
+@router.patch(
+    "/{producto_id}/stock",
+    response_model=ProductoReadFull,
+    dependencies=[Depends(_admin_or_stock)],
+)
+def patch_stock(
+    producto_id: Annotated[int, Path(ge=1)],
+    payload: ProductoStockUpdate,
+    session: Session = Depends(get_session),
+):
+    with UnitOfWork(session) as uow:
+        prod = uow.session.get(Producto, producto_id)
+        if prod is None:
+            from fastapi import HTTPException
+            raise HTTPException(404, "Producto no encontrado")
+        prod.stock_cantidad = payload.stock_cantidad
         uow.session.add(prod)
         uow.session.flush()
         return _serialize_full(uow.session, prod)

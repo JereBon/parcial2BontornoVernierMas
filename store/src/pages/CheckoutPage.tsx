@@ -59,8 +59,8 @@ export default function CheckoutPage() {
     mutationFn: async (input: PedidoInput) => {
       const pedido = await pedidosApi.create(input);
       const forma = formasPagoQ.data?.find((fp) => fp.id === input.forma_pago_id);
-      if (forma?.codigo === 'MERCADO_PAGO') {
-        const pref = await pedidosApi.mpPreference(pedido.id);
+      if (forma?.codigo === 'MERCADOPAGO') {
+        const pref = await pedidosApi.crearPago(pedido.id);
         clear();
         window.location.href = pref.init_point;
         return null;

@@ -10,15 +10,16 @@ import { EstadoBadge } from '../components/EstadoBadge';
 
 const LIMIT = 10;
 const ESTADOS: EstadoPedidoCodigo[] = [
-  'PENDIENTE', 'CONFIRMADO', 'EN_PREPARACION', 'ENTREGADO', 'CANCELADO',
+  'PENDIENTE', 'CONFIRMADO', 'EN_PREP', 'ENTREGADO', 'CANCELADO',
 ];
 
 export default function MisPedidosPage() {
   const [offset, setOffset] = useState(0);
   const [estado, setEstado] = useState<EstadoPedidoCodigo | ''>('');
 
+  const page = Math.floor(offset / LIMIT) + 1;
   const filters = {
-    skip: offset, limit: LIMIT,
+    page, size: LIMIT,
     estado: estado === '' ? undefined : estado,
   };
 

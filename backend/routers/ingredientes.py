@@ -21,19 +21,15 @@ _stock_or_admin = require_roles("ADMIN", "STOCK")
 @router.get("/", response_model=PaginatedResponse[IngredienteRead])
 def read_ingredientes(
     session: Session = Depends(get_session),
-    skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=500)] = 20,
     nombre: Annotated[str | None, Query(max_length=120)] = None,
 ):
+    skip = (page - 1) * size
     items, total = IngredienteService(session).list_paginated(
-        skip=skip, limit=limit, nombre=nombre
+        skip=skip, limit=size, nombre=nombre
     )
-    return PaginatedResponse[IngredienteRead](
-        total=total,
-        items=[IngredienteRead.model_validate(i) for i in items],
-        limit=limit,
-        offset=skip,
-    )
+    return PaginatedResponse.build([IngredienteRead.model_validate(i) for i in items], total, page, size)
 
 
 @router.get("/{ingrediente_id}", response_model=IngredienteRead)

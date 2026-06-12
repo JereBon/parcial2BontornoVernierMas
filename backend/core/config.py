@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     # Rate limiting
     RATE_LIMIT_DEFAULT_BURST: int = 60
     RATE_LIMIT_DEFAULT_PER_MINUTE: float = 300.0
-    RATE_LIMIT_AUTH_BURST: int = 30
-    RATE_LIMIT_AUTH_PER_MINUTE: float = 10.0
+    RATE_LIMIT_AUTH_BURST: int = 5
+    RATE_LIMIT_AUTH_PER_MINUTE: float = 0.333  # 5 intentos / 15 min
 
     model_config = SettingsConfigDict(env_file=_ENV_FILE, extra="ignore")
 

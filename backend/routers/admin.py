@@ -35,17 +35,16 @@ def _serialize(u) -> UsuarioAdminRead:
 )
 def list_usuarios(
     session: Session = Depends(get_session),
-    skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
     rol: Annotated[str | None, Query()] = None,
     busqueda: Annotated[str | None, Query(max_length=120)] = None,
 ):
+    skip = (page - 1) * size
     items, total = AdminUserService(session).list_paginated(
-        skip=skip, limit=limit, rol_codigo=rol, busqueda=busqueda
+        skip=skip, limit=size, rol_codigo=rol, busqueda=busqueda
     )
-    return PaginatedResponse[UsuarioAdminRead](
-        total=total, items=[_serialize(u) for u in items], limit=limit, offset=skip
-    )
+    return PaginatedResponse.build([_serialize(u) for u in items], total, page, size)
 
 
 @router.get(

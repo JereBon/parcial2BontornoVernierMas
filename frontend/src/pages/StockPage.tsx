@@ -22,7 +22,7 @@ export default function StockPage() {
 
   const ingQ = useQuery({
     queryKey: ['ingredientes', 'stock', { ingOffset, ingSearch }],
-    queryFn: () => ingredientesApi.list({ skip: ingOffset, limit: LIMIT, nombre: ingSearch || undefined }),
+    queryFn: () => ingredientesApi.list({ page: Math.floor(ingOffset / LIMIT) + 1, size: LIMIT, nombre: ingSearch || undefined }),
     refetchInterval: 5_000,
     placeholderData: (prev) => prev,
   });
@@ -46,7 +46,7 @@ export default function StockPage() {
 
   const prodQ = useQuery({
     queryKey: ['productos', 'stock', { prodOffset, prodSearch }],
-    queryFn: () => productosApi.list({ skip: prodOffset, limit: LIMIT, nombre: prodSearch || undefined }),
+    queryFn: () => productosApi.list({ page: Math.floor(prodOffset / LIMIT) + 1, size: LIMIT, nombre: prodSearch || undefined }),
     refetchInterval: 5_000,
     placeholderData: (prev) => prev,
   });

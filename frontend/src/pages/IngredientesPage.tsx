@@ -21,8 +21,8 @@ export default function IngredientesPage() {
   const [editing, setEditing] = useState<Ingrediente | null>(null);
 
   const listQ = useQuery({
-    queryKey: ['ingredientes', 'list', { offset, limit: LIMIT, nombre: search || undefined }],
-    queryFn: () => ingredientesApi.list({ skip: offset, limit: LIMIT, nombre: search || undefined }),
+    queryKey: ['ingredientes', 'list', { offset, size: LIMIT, nombre: search || undefined }],
+    queryFn: () => ingredientesApi.list({ page: Math.floor(offset / LIMIT) + 1, size: LIMIT, nombre: search || undefined }),
     placeholderData: (prev) => prev,
   });
 

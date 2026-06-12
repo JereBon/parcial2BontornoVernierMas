@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ..models.estado_pedido import EstadoPedidoCodigo
 from .lookups import EstadoPedidoRead, FormaPagoRead
 from .direccion import DireccionRead
@@ -21,6 +21,12 @@ class PedidoCreate(BaseModel):
 class EstadoUpdate(BaseModel):
     estado: EstadoPedidoCodigo
     motivo: Optional[str] = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def motivo_requerido_al_cancelar(self) -> "EstadoUpdate":
+        if self.estado == EstadoPedidoCodigo.CANCELADO and not self.motivo:
+            raise ValueError("El motivo es obligatorio al cancelar un pedido (RN-05)")
+        return self
 
 
 class CancelarPedido(BaseModel):
@@ -67,3 +73,26 @@ class PedidoRead(BaseModel):
 class PedidoReadFull(PedidoRead):
     detalles: List[DetallePedidoRead] = []
     historial: List[HistorialEstadoPedidoRead] = []
+    pago: Optional["PagoRead"] = None
+
+
+class PagoRead(BaseModel):
+    id: int
+    pedido_id: int
+    mp_payment_id: Optional[int] = None
+    mp_preference_id: Optional[str] = None
+    mp_status: str
+    mp_status_detail: Optional[str] = None
+    transaction_amount: float
+    payment_method_id: Optional[str] = None
+    external_reference: str
+    idempotency_key: str
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PagoResponse(PagoRead):
+    """Respuesta de crear pago — incluye URL de checkout."""
+    preference_id: Optional[str] = None
+    init_point: Optional[str] = None

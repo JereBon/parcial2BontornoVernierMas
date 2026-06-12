@@ -115,6 +115,10 @@ class ProductoDisponibilidadUpdate(BaseModel):
     disponible: Optional[bool] = None
 
 
+class ProductoStockUpdate(BaseModel):
+    stock_cantidad: int = Field(..., ge=0)
+
+
 class ProductoRead(BaseModel):
     id: int
     nombre: str
@@ -122,6 +126,7 @@ class ProductoRead(BaseModel):
     descripcion: Optional[str] = None
     imagenes_url: Optional[List[str]] = None
     disponible: bool
+    stock_cantidad: int = 0
     stock_disponible: int = 0
     unidad_venta: Optional[UnidadMedidaRead] = None
     model_config = ConfigDict(from_attributes=True)

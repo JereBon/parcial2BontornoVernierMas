@@ -16,8 +16,9 @@ export interface Usuario {
 export interface Paginated<T> {
   total: number;
   items: T[];
-  limit: number;
-  offset: number;
+  page: number;
+  size: number;
+  pages: number;
 }
 
 export interface Categoria {
@@ -72,7 +73,7 @@ export interface Producto {
 export type EstadoPedidoCodigo =
   | 'PENDIENTE'
   | 'CONFIRMADO'
-  | 'EN_PREPARACION'
+  | 'EN_PREP'
   | 'ENTREGADO'
   | 'CANCELADO';
 

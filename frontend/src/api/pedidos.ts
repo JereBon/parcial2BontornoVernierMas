@@ -19,8 +19,8 @@ export interface PedidoInput {
 }
 
 export interface PedidoFilters {
-  skip?: number;
-  limit?: number;
+  page?: number;
+  size?: number;
   estado?: EstadoPedidoCodigo;
   usuario_id?: number;
 }

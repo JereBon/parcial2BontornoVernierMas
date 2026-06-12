@@ -1,5 +1,6 @@
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pydantic import BaseModel
 from sqlmodel import Session
 from ..database import get_session
 from ..schemas.auth import UsuarioCreate, UsuarioLogin, UsuarioRead, TokenResponse
@@ -10,6 +11,10 @@ from ..core.config import settings
 from ..core.deps import get_current_user
 from ..core.security import create_access_token, create_refresh_token, decode_refresh_token
 from ..models import Usuario
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str | None = None
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -67,10 +72,13 @@ def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(
-    request: Request, response: Response, session: Session = Depends(get_session)
+async def refresh(
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_session),
+    body: RefreshRequest = RefreshRequest(),
 ) -> TokenResponse:
-    token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
+    token = request.cookies.get(settings.REFRESH_COOKIE_NAME) or body.refresh_token
     if not token:
         raise HTTPException(status_code=401, detail="Refresh token no encontrado")
     try:

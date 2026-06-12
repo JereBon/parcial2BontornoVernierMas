@@ -57,8 +57,8 @@ export default function ProductosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filters = {
-    skip: offset,
-    limit: LIMIT,
+    page: Math.floor(offset / LIMIT) + 1,
+    size: LIMIT,
     nombre: search || undefined,
     categoria_id: filterCategoria === '' ? undefined : Number(filterCategoria),
     disponible: filterDisponible === 'todos' ? undefined : filterDisponible === 'si',
@@ -75,8 +75,8 @@ export default function ProductosPage() {
   });
 
   const ingredientesQ = useQuery({
-    queryKey: ['ingredientes', 'list', { limit: 200 }],
-    queryFn: () => ingredientesApi.list({ limit: 200 }),
+    queryKey: ['ingredientes', 'list', { size: 200 }],
+    queryFn: () => ingredientesApi.list({ size: 200 }),
   });
 
   const unidadesQ = useQuery({

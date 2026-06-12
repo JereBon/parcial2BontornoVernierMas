@@ -7,7 +7,7 @@ from sqlalchemy import Column, String
 class EstadoPedidoCodigo(str, Enum):
     PENDIENTE = "PENDIENTE"
     CONFIRMADO = "CONFIRMADO"
-    EN_PREPARACION = "EN_PREPARACION"
+    EN_PREP = "EN_PREP"
     ENTREGADO = "ENTREGADO"
     CANCELADO = "CANCELADO"
 
@@ -18,10 +18,10 @@ ALLOWED_TRANSITIONS: dict[EstadoPedidoCodigo, set[EstadoPedidoCodigo]] = {
         EstadoPedidoCodigo.CANCELADO,
     },
     EstadoPedidoCodigo.CONFIRMADO: {
-        EstadoPedidoCodigo.EN_PREPARACION,
+        EstadoPedidoCodigo.EN_PREP,
         EstadoPedidoCodigo.CANCELADO,
     },
-    EstadoPedidoCodigo.EN_PREPARACION: {
+    EstadoPedidoCodigo.EN_PREP: {
         EstadoPedidoCodigo.ENTREGADO,
         EstadoPedidoCodigo.CANCELADO,
     },

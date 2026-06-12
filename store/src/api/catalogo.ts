@@ -2,8 +2,8 @@ import { api } from './client';
 import type { CategoriaTreeNode, Paginated, Producto } from './types';
 
 export interface ProductoFilters {
-  skip?: number;
-  limit?: number;
+  page?: number;
+  size?: number;
   nombre?: string;
   categoria_ids?: number[];
   disponible?: boolean;

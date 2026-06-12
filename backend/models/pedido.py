@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import List, Optional
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy import Integer as SAInteger, Column
+from sqlalchemy import Integer as SAInteger, Column, Numeric
 from .estado_pedido import (
     EstadoPedido,
     EstadoPedidoCodigo,
@@ -86,3 +87,19 @@ class HistorialEstadoPedido(SQLModel, table=True):
             "foreign_keys": "[HistorialEstadoPedido.estado_hacia_id]"
         }
     )
+
+
+class Pago(SQLModel, table=True):
+    __tablename__ = "pago"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    pedido_id: int = Field(foreign_key="pedido.id", index=True)
+    mp_payment_id: Optional[int] = Field(default=None, unique=True)
+    mp_preference_id: Optional[str] = Field(default=None, max_length=100)
+    mp_status: str = Field(max_length=30)
+    mp_status_detail: Optional[str] = Field(default=None, max_length=100)
+    transaction_amount: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
+    payment_method_id: Optional[str] = Field(default=None, max_length=50)
+    external_reference: str = Field(max_length=100, unique=True)
+    idempotency_key: str = Field(max_length=100, unique=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -12,8 +12,10 @@ from ..schemas import (
     HistorialEstadoPedidoRead,
     PaginatedResponse,
 )
+from ..schemas.pedido import PagoRead
 from ..models import Usuario
 from ..models.estado_pedido import EstadoPedidoCodigo
+from ..repositories.pago_repository import PagoRepository
 from ..services.pedido_service import PedidoService
 from ..uow.unit_of_work import UnitOfWork
 from ..core.deps import get_current_user, require_roles
@@ -60,19 +62,15 @@ async def create_pedido(
 def read_mine(
     session: Session = Depends(get_session),
     user: Usuario = Depends(get_current_user),
-    skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
     estado: Annotated[EstadoPedidoCodigo | None, Query()] = None,
 ):
+    skip = (page - 1) * size
     items, total = PedidoService(session).search_own(
-        user=user, skip=skip, limit=limit, estado=estado
+        user=user, skip=skip, limit=size, estado=estado
     )
-    return PaginatedResponse[PedidoRead](
-        total=total,
-        items=[PedidoRead.model_validate(p) for p in items],
-        limit=limit,
-        offset=skip,
-    )
+    return PaginatedResponse.build([PedidoRead.model_validate(p) for p in items], total, page, size)
 
 
 @router.get(
@@ -81,20 +79,23 @@ def read_mine(
 def read_all(
     session: Session = Depends(get_session),
     user: Usuario = Depends(get_current_user),
-    skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
     estado: Annotated[EstadoPedidoCodigo | None, Query()] = None,
     usuario_id: Annotated[int | None, Query(ge=1)] = None,
 ):
+    skip = (page - 1) * size
     items, total = PedidoService(session).search_for_user(
-        user=user, skip=skip, limit=limit, estado=estado, usuario_id=usuario_id
+        user=user, skip=skip, limit=size, estado=estado, usuario_id=usuario_id
     )
-    return PaginatedResponse[PedidoRead](
-        total=total,
-        items=[PedidoRead.model_validate(p) for p in items],
-        limit=limit,
-        offset=skip,
-    )
+    return PaginatedResponse.build([PedidoRead.model_validate(p) for p in items], total, page, size)
+
+
+def _build_full(pedido, session: Session) -> dict:
+    pago = PagoRepository(session).get_by_pedido(pedido.id)
+    data = PedidoReadFull.model_validate(pedido).model_dump()
+    data["pago"] = PagoRead.model_validate(pago).model_dump() if pago else None
+    return data
 
 
 @router.get("/{pedido_id}", response_model=PedidoReadFull)
@@ -103,7 +104,8 @@ def read_one(
     session: Session = Depends(get_session),
     user: Usuario = Depends(get_current_user),
 ):
-    return PedidoService(session).get_full(pedido_id, user)
+    pedido = PedidoService(session).get_full(pedido_id, user)
+    return _build_full(pedido, session)
 
 
 @router.patch(

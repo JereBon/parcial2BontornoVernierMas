@@ -9,8 +9,8 @@ import { EstadoBadge } from '../components/EstadoBadge';
 
 const NEXT_STATE: Partial<Record<EstadoPedidoCodigo, EstadoPedidoCodigo>> = {
   PENDIENTE: 'CONFIRMADO',
-  CONFIRMADO: 'EN_PREPARACION',
-  EN_PREPARACION: 'ENTREGADO',
+  CONFIRMADO: 'EN_PREP',
+  EN_PREP: 'ENTREGADO',
 };
 
 const TERMINAL: EstadoPedidoCodigo[] = ['ENTREGADO', 'CANCELADO'];

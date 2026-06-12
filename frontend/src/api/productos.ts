@@ -19,8 +19,8 @@ export interface ProductoInput {
 }
 
 export interface ProductoFilters {
-  skip?: number;
-  limit?: number;
+  page?: number;
+  size?: number;
   nombre?: string;
   categoria_id?: number;
   disponible?: boolean;

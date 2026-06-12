@@ -14,7 +14,7 @@ import { useAuth } from '../auth/AuthContext';
 const ESTADO_COLORS: Record<string, string> = {
   PENDIENTE:      '#f59e0b',
   CONFIRMADO:     '#3b82f6',
-  EN_PREPARACION: '#8b5cf6',
+  EN_PREP: '#8b5cf6',
   ENTREGADO:      '#10b981',
   CANCELADO:      '#ef4444',
 };
@@ -22,7 +22,7 @@ const ESTADO_COLORS: Record<string, string> = {
 const ESTADO_LABELS: Record<string, string> = {
   PENDIENTE:      'Pendiente',
   CONFIRMADO:     'Confirmado',
-  EN_PREPARACION: 'En preparación',
+  EN_PREP: 'En preparación',
   ENTREGADO:      'Entregado',
   CANCELADO:      'Cancelado',
 };
@@ -53,47 +53,47 @@ export default function DashboardPage() {
 
   const productosQ = useQuery({
     queryKey: ['productos', 'count'],
-    queryFn: () => productosApi.list({ limit: 1 }),
+    queryFn: () => productosApi.list({ page: 1, size: 1 }),
     enabled: isAdmin,
   });
   const categoriasQ = useQuery({
     queryKey: ['categorias', 'count'],
-    queryFn: () => categoriasApi.list({ limit: 1 }),
+    queryFn: () => categoriasApi.list({ size: 1 }),
     enabled: isAdmin,
   });
   const ingredientesQ = useQuery({
     queryKey: ['ingredientes', 'count'],
-    queryFn: () => ingredientesApi.list({ limit: 1 }),
+    queryFn: () => ingredientesApi.list({ size: 1 }),
     enabled: isAdmin,
   });
 
   const pendientesQ = useQuery({
     queryKey: ['pedidos', 'count', 'PENDIENTE'],
-    queryFn: () => pedidosApi.listAll({ limit: 1, estado: 'PENDIENTE' }),
+    queryFn: () => pedidosApi.listAll({ page: 1, size: 1, estado: 'PENDIENTE' }),
     enabled: canSeePedidos,
     refetchInterval: 15_000,
   });
   const confirmadosQ = useQuery({
     queryKey: ['pedidos', 'count', 'CONFIRMADO'],
-    queryFn: () => pedidosApi.listAll({ limit: 1, estado: 'CONFIRMADO' }),
+    queryFn: () => pedidosApi.listAll({ page: 1, size: 1, estado: 'CONFIRMADO' }),
     enabled: canSeePedidos,
     refetchInterval: 15_000,
   });
   const enPrepQ = useQuery({
-    queryKey: ['pedidos', 'count', 'EN_PREPARACION'],
-    queryFn: () => pedidosApi.listAll({ limit: 1, estado: 'EN_PREPARACION' }),
+    queryKey: ['pedidos', 'count', 'EN_PREP'],
+    queryFn: () => pedidosApi.listAll({ page: 1, size: 1, estado: 'EN_PREP' }),
     enabled: canSeePedidos,
     refetchInterval: 15_000,
   });
   const entregadosQ = useQuery({
     queryKey: ['pedidos', 'count', 'ENTREGADO'],
-    queryFn: () => pedidosApi.listAll({ limit: 1, estado: 'ENTREGADO' }),
+    queryFn: () => pedidosApi.listAll({ page: 1, size: 1, estado: 'ENTREGADO' }),
     enabled: canSeePedidos,
     refetchInterval: 15_000,
   });
   const canceladosQ = useQuery({
     queryKey: ['pedidos', 'count', 'CANCELADO'],
-    queryFn: () => pedidosApi.listAll({ limit: 1, estado: 'CANCELADO' }),
+    queryFn: () => pedidosApi.listAll({ page: 1, size: 1, estado: 'CANCELADO' }),
     enabled: canSeePedidos,
     refetchInterval: 15_000,
   });
@@ -101,7 +101,7 @@ export default function DashboardPage() {
   const estadoRows = [
     { estado: 'PENDIENTE',      q: pendientesQ },
     { estado: 'CONFIRMADO',     q: confirmadosQ },
-    { estado: 'EN_PREPARACION', q: enPrepQ },
+    { estado: 'EN_PREP', q: enPrepQ },
     { estado: 'ENTREGADO',      q: entregadosQ },
     { estado: 'CANCELADO',      q: canceladosQ },
   ];
@@ -139,7 +139,7 @@ export default function DashboardPage() {
             <StatCard title="En preparación"
               value={enPrepQ.data?.total ?? 0}
               loading={enPrepQ.isLoading}
-              to="/pedidos?estado=EN_PREPARACION" />
+              to="/pedidos?estado=EN_PREP" />
             <StatCard title="Total pedidos"
               value={totalPedidos}
               loading={pedidosLoading}

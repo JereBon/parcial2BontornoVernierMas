@@ -10,7 +10,7 @@ import { EstadoBadge } from '../components/EstadoBadge';
 
 const LIMIT = 20;
 const ESTADOS: EstadoPedidoCodigo[] = [
-  'PENDIENTE', 'CONFIRMADO', 'EN_PREPARACION', 'ENTREGADO', 'CANCELADO',
+  'PENDIENTE', 'CONFIRMADO', 'EN_PREP', 'ENTREGADO', 'CANCELADO',
 ];
 
 export default function PedidosPage() {
@@ -18,7 +18,8 @@ export default function PedidosPage() {
   const estadoParam = params.get('estado') as EstadoPedidoCodigo | null;
   const [offset, setOffset] = useState(0);
 
-  const filters = { skip: offset, limit: LIMIT, estado: estadoParam ?? undefined };
+  const page = Math.floor(offset / LIMIT) + 1;
+  const filters = { page, size: LIMIT, estado: estadoParam ?? undefined };
 
   const listQ = useQuery({
     queryKey: ['pedidos', 'all', filters],

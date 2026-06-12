@@ -18,8 +18,8 @@ from .routers import (
     admin,
     uploads,
     ws,
+    pagos,
 )
-from .routers import mp
 from sqlmodel import Session
 
 logging.basicConfig(
@@ -66,7 +66,7 @@ app.include_router(lookups.router, prefix=API_PREFIX)
 app.include_router(admin.router, prefix=API_PREFIX)
 app.include_router(uploads.router, prefix=API_PREFIX)
 app.include_router(ws.router)  # WS endpoints don't use /api/v1 prefix
-app.include_router(mp.router)
+app.include_router(pagos.router, prefix=API_PREFIX)
 
 
 @app.get("/health")
