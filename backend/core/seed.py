@@ -8,6 +8,11 @@ from ..models import (
     FormaPago,
     FormaPagoCodigo,
     UnidadMedida,
+    Categoria,
+    Ingrediente,
+    Producto,
+    ProductoCategoria,
+    ProductoIngrediente,
 )
 from ..models.rol import RolCodigo
 from ..uow.unit_of_work import UnitOfWork
@@ -104,3 +109,182 @@ def seed_all(session: Session) -> None:
         else:
             # Siempre actualizar la contraseña para que coincida con la del seed
             admin.password_hash = hash_password(ADMIN_PASSWORD)
+
+    # Productos — solo si la tabla está vacía
+    with UnitOfWork(session) as uow:
+        sess = uow.session
+        if sess.exec(select(Producto)).first() is None:
+            _seed_productos(sess)
+
+
+def _seed_productos(sess: Session) -> None:
+    # ── unidades ──────────────────────────────────────────────────
+    def um(simbolo: str) -> UnidadMedida:
+        return sess.exec(select(UnidadMedida).where(UnidadMedida.simbolo == simbolo)).first()
+
+    g   = um("g")
+    ml  = um("ml")
+    ud  = um("ud")
+
+    # ── categorías ────────────────────────────────────────────────
+    def cat(nombre: str, descripcion: str) -> Categoria:
+        existing = sess.exec(select(Categoria).where(Categoria.nombre == nombre)).first()
+        if existing:
+            return existing
+        c = Categoria(nombre=nombre, descripcion=descripcion)
+        sess.add(c)
+        sess.flush()
+        return c
+
+    hamburguesas = cat("Hamburguesas",  "Burgers artesanales con pan brioche")
+    pizzas       = cat("Pizzas",        "Pizzas al horno de piedra")
+    bebidas      = cat("Bebidas",       "Frías y calientes")
+    postres      = cat("Postres",       "Para cerrar con dulzura")
+    ensaladas    = cat("Ensaladas",     "Frescas y livianas")
+
+    # ── ingredientes ──────────────────────────────────────────────
+    def ing(nombre: str, unidad: UnidadMedida, stock: int = 100, alergeno: bool = False) -> Ingrediente:
+        existing = sess.exec(select(Ingrediente).where(Ingrediente.nombre == nombre)).first()
+        if existing:
+            return existing
+        i = Ingrediente(nombre=nombre, unidad_medida_id=unidad.id, stock_cantidad=stock, es_alergeno=alergeno)
+        sess.add(i)
+        sess.flush()
+        return i
+
+    pan_brioche      = ing("Pan brioche",          ud,  stock=80,  alergeno=True)
+    carne_200        = ing("Medallón de carne 200g", g, stock=120)
+    carne_300        = ing("Medallón de carne 300g", g, stock=80)
+    queso_cheddar    = ing("Queso cheddar",          g, stock=200, alergeno=True)
+    lechuga          = ing("Lechuga",                g, stock=300)
+    tomate           = ing("Tomate",                 g, stock=250)
+    cebolla          = ing("Cebolla caramelizada",   g, stock=150)
+    panceta          = ing("Panceta ahumada",        g, stock=100)
+    masa_pizza       = ing("Masa de pizza",         ud, stock=50,  alergeno=True)
+    salsa_tomate     = ing("Salsa de tomate",       ml, stock=500)
+    mozzarella       = ing("Queso mozzarella",       g, stock=300, alergeno=True)
+    pepperoni_ing    = ing("Pepperoni",              g, stock=100)
+    jamon            = ing("Jamón cocido",           g, stock=150)
+    anana            = ing("Ananá en rodajas",       g, stock=80)
+    coca             = ing("Coca-Cola 500ml",       ml, stock=200)
+    agua             = ing("Agua mineral 500ml",    ml, stock=300)
+    jugo_naranja     = ing("Jugo de naranja",       ml, stock=100)
+    brownie          = ing("Brownie de chocolate",  ud, stock=40,  alergeno=True)
+    helado_vainilla  = ing("Helado de vainilla",     g, stock=150, alergeno=True)
+    mix_verdes       = ing("Mix de verdes",          g, stock=200)
+    aderezo_cesar    = ing("Aderezo césar",         ml, stock=100)
+    crutones         = ing("Crutones",               g, stock=80,  alergeno=True)
+    pollo_grillado   = ing("Pechuga de pollo grillada", g, stock=100)
+
+    # ── helper para crear producto ────────────────────────────────
+    def prod(
+        nombre: str,
+        precio: float,
+        descripcion: str,
+        categoria: Categoria,
+        ingredientes: list,   # [(Ingrediente, cantidad_float, UnidadMedida)]
+        stock: int = 50,
+    ) -> Producto:
+        p = Producto(
+            nombre=nombre,
+            precio_base=precio,
+            descripcion=descripcion,
+            disponible=True,
+            stock_cantidad=stock,
+        )
+        sess.add(p)
+        sess.flush()
+        sess.add(ProductoCategoria(producto_id=p.id, categoria_id=categoria.id))
+        for ingrediente, cantidad, unidad in ingredientes:
+            sess.add(ProductoIngrediente(
+                producto_id=p.id,
+                ingrediente_id=ingrediente.id,
+                cantidad=cantidad,
+                unidad_medida_id=unidad.id,
+                es_removible=True,
+            ))
+        sess.flush()
+        return p
+
+    # ── HAMBURGUESAS ──────────────────────────────────────────────
+    prod("Burger Clásica", 1800,
+         "Medallón de carne, queso cheddar, lechuga y tomate en pan brioche",
+         hamburguesas,
+         [(pan_brioche, 1, ud), (carne_200, 200, g), (queso_cheddar, 30, g),
+          (lechuga, 20, g), (tomate, 30, g)])
+
+    prod("Burger BBQ", 2200,
+         "Medallón 300g, panceta ahumada, cebolla caramelizada y cheddar doble",
+         hamburguesas,
+         [(pan_brioche, 1, ud), (carne_300, 300, g), (panceta, 40, g),
+          (cebolla, 30, g), (queso_cheddar, 50, g)])
+
+    prod("Burger Doble", 2500,
+         "Dos medallones, doble cheddar, lechuga y tomate",
+         hamburguesas,
+         [(pan_brioche, 1, ud), (carne_200, 200, g), (carne_200, 200, g),
+          (queso_cheddar, 60, g), (lechuga, 20, g), (tomate, 30, g)])
+
+    prod("Burger Pollo Grillado", 2000,
+         "Pechuga de pollo grillada, lechuga, tomate y mayonesa",
+         hamburguesas,
+         [(pan_brioche, 1, ud), (pollo_grillado, 180, g),
+          (lechuga, 25, g), (tomate, 30, g)])
+
+    # ── PIZZAS ────────────────────────────────────────────────────
+    prod("Pizza Mozzarella", 2800,
+         "Salsa de tomate y mozzarella fresca",
+         pizzas,
+         [(masa_pizza, 1, ud), (salsa_tomate, 80, ml), (mozzarella, 150, g)])
+
+    prod("Pizza Pepperoni", 3200,
+         "Salsa de tomate, mozzarella y pepperoni artesanal",
+         pizzas,
+         [(masa_pizza, 1, ud), (salsa_tomate, 80, ml), (mozzarella, 150, g),
+          (pepperoni_ing, 80, g)])
+
+    prod("Pizza Capricciosa", 3000,
+         "Salsa de tomate, mozzarella y jamón cocido",
+         pizzas,
+         [(masa_pizza, 1, ud), (salsa_tomate, 80, ml), (mozzarella, 150, g),
+          (jamon, 80, g)])
+
+    prod("Pizza Hawaiana", 3100,
+         "Salsa de tomate, mozzarella, jamón y ananá",
+         pizzas,
+         [(masa_pizza, 1, ud), (salsa_tomate, 80, ml), (mozzarella, 130, g),
+          (jamon, 60, g), (anana, 50, g)])
+
+    # ── BEBIDAS ───────────────────────────────────────────────────
+    prod("Coca-Cola 500ml", 700,
+         "Bebida cola refrescante",
+         bebidas,
+         [(coca, 500, ml)], stock=200)
+
+    prod("Agua Mineral 500ml", 400,
+         "Agua mineral sin gas",
+         bebidas,
+         [(agua, 500, ml)], stock=300)
+
+    prod("Jugo de Naranja Natural", 800,
+         "Jugo exprimido al momento",
+         bebidas,
+         [(jugo_naranja, 300, ml)], stock=80)
+
+    # ── POSTRES ───────────────────────────────────────────────────
+    prod("Brownie con Helado", 1200,
+         "Brownie de chocolate tibio con una bocha de helado de vainilla",
+         postres,
+         [(brownie, 1, ud), (helado_vainilla, 100, g)])
+
+    prod("Helado Triple", 900,
+         "Tres bochas de helado de vainilla",
+         postres,
+         [(helado_vainilla, 300, g)])
+
+    # ── ENSALADAS ─────────────────────────────────────────────────
+    prod("Ensalada César", 1500,
+         "Mix de verdes, pollo grillado, crutones y aderezo césar",
+         ensaladas,
+         [(mix_verdes, 150, g), (pollo_grillado, 100, g),
+          (crutones, 30, g), (aderezo_cesar, 40, ml)])
