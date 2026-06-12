@@ -1,0 +1,19 @@
+== BACKEND (terminal 1) ==
+cd /home/lucho/Desktop/parcial2BontornoVernierMas-master
+backend/.venv/bin/uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+
+
+== ADMIN FRONTEND (terminal 2) ==
+cd /home/lucho/Desktop/parcial2BontornoVernierMas-master/frontend
+npm run dev
+
+
+== STORE FRONTEND (terminal 3) ==
+cd /home/lucho/Desktop/parcial2BontornoVernierMas-master/store
+npm run dev
+
+
+== URLS ==
+Backend / Swagger  →  http://localhost:8000/docs
+Admin              →  http://localhost:5173   (admin@admin.com / admin12345)
+Store              →  http://localhost:5174   (registrate como cliente)
