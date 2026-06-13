@@ -9,6 +9,25 @@ import { EstadoBadge } from '../components/EstadoBadge';
 import { useOrderStatusWS } from '../hooks/useOrderStatusWS';
 import { useToastStore } from '../stores/toastStore';
 
+const MP_STATUS_LABEL: Record<string, string> = {
+  approved: 'Aprobado',
+  pending: 'Pendiente',
+  rejected: 'Rechazado',
+  cancelled: 'Cancelado',
+  in_process: 'En proceso',
+  in_mediation: 'En mediación',
+  refunded: 'Devuelto',
+  charged_back: 'Contracargo',
+};
+
+const MP_METHOD_LABEL: Record<string, string> = {
+  credit_card: 'Tarjeta de crédito',
+  debit_card: 'Tarjeta de débito',
+  account_money: 'Dinero en cuenta MP',
+  ticket: 'Ticket / Efectivo',
+  bank_transfer: 'Transferencia bancaria',
+};
+
 const CANCELABLE: EstadoPedidoCodigo[] = ['PENDIENTE', 'CONFIRMADO'];
 
 export default function MiPedidoDetallePage() {
@@ -31,6 +50,14 @@ export default function MiPedidoDetallePage() {
   const { connected, lastEvent } = useOrderStatusWS(
     Number.isNaN(pedidoId) ? undefined : pedidoId,
   );
+
+  const isMercadoPago = pedidoQ.data?.forma_pago?.codigo === 'MERCADOPAGO';
+  const pagoQ = useQuery({
+    queryKey: ['pagos', pedidoId],
+    queryFn: () => pedidosApi.getPago(pedidoId),
+    enabled: !Number.isNaN(pedidoId) && isMercadoPago,
+    retry: false,
+  });
 
   useEffect(() => {
     if (!lastEvent) return;
@@ -86,7 +113,7 @@ export default function MiPedidoDetallePage() {
         </span>
       </div>
 
-      {mpStatus === 'approved' && (
+      {mpStatus === 'approved' && estadoCodigo !== 'CANCELADO' && estadoCodigo !== 'ENTREGADO' && (
         <div className="mb-4 bg-green-50 border border-green-300 text-green-800 rounded-lg px-4 py-3 font-semibold">
           ✓ Pago confirmado — tu pedido está siendo procesado
         </div>
@@ -114,6 +141,57 @@ export default function MiPedidoDetallePage() {
           </p>
           <p className="text-sm text-gray-500">Forma de pago</p>
           <p className="mb-2">{p.forma_pago.descripcion}</p>
+
+          {isMercadoPago && pagoQ.data && (
+            <div className="mb-3 mt-1 bg-blue-50 border border-blue-200 rounded-lg p-3 flex flex-col gap-1 text-sm">
+              <p className="font-semibold text-blue-800 mb-1">Datos del pago — MercadoPago</p>
+              {pagoQ.data.mp_payment_id && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">ID de pago</span>
+                  <span className="font-mono text-xs">{pagoQ.data.mp_payment_id}</span>
+                </div>
+              )}
+              {pagoQ.data.mp_preference_id && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">ID de preferencia</span>
+                  <span className="font-mono text-xs truncate max-w-[180px]">{pagoQ.data.mp_preference_id}</span>
+                </div>
+              )}
+              {pagoQ.data.mp_status && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Estado</span>
+                  <span className={`font-semibold ${pagoQ.data.mp_status === 'approved' ? 'text-green-700' : pagoQ.data.mp_status === 'rejected' ? 'text-red-700' : 'text-yellow-700'}`}>
+                    {MP_STATUS_LABEL[pagoQ.data.mp_status] ?? pagoQ.data.mp_status}
+                  </span>
+                </div>
+              )}
+              {pagoQ.data.mp_status_detail && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Detalle</span>
+                  <span className="text-gray-700">{pagoQ.data.mp_status_detail}</span>
+                </div>
+              )}
+              {pagoQ.data.payment_method_id && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Método</span>
+                  <span>{MP_METHOD_LABEL[pagoQ.data.payment_method_id] ?? pagoQ.data.payment_method_id}</span>
+                </div>
+              )}
+              {pagoQ.data.transaction_amount != null && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Monto procesado</span>
+                  <span className="font-semibold">${Number(pagoQ.data.transaction_amount).toFixed(2)}</span>
+                </div>
+              )}
+              {pagoQ.data.external_reference && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Referencia externa</span>
+                  <span className="font-mono text-xs">{pagoQ.data.external_reference}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {p.notas && (<><p className="text-sm text-gray-500">Notas</p><p className="mb-2">{p.notas}</p></>)}
           <p className="text-sm text-gray-500 mt-2">Subtotal</p>
           <p className="mb-1">${p.subtotal.toFixed(2)}</p>
@@ -188,8 +266,10 @@ export default function MiPedidoDetallePage() {
           {p.historial.map((h) => (
             <li key={h.id} className="flex items-center gap-3 text-sm">
               <span className="text-gray-500 w-44">{new Date(h.created_at).toLocaleString()}</span>
-              <span>
-                {h.estado_desde ? `${h.estado_desde.codigo} → ` : ''}
+              <span className="flex items-center gap-1 flex-wrap">
+                {h.estado_desde && (
+                  <><EstadoBadge estado={h.estado_desde.codigo} /><span className="text-gray-400">→</span></>
+                )}
                 {h.estado_hacia && <EstadoBadge estado={h.estado_hacia.codigo} />}
               </span>
               {h.motivo && <span className="text-gray-500">— {h.motivo}</span>}

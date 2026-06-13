@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from '@tanstack/react-form';
 import { productosApi, type ProductoInput, type ProductoIngredienteInput } from '../api/productos';
 import { categoriasApi } from '../api/categorias';
@@ -60,13 +60,14 @@ export default function ProductosPage() {
     page: Math.floor(offset / LIMIT) + 1,
     size: LIMIT,
     nombre: search || undefined,
-    categoria_id: filterCategoria === '' ? undefined : Number(filterCategoria),
+    categoria_ids: filterCategoria === '' ? undefined : [Number(filterCategoria)],
     disponible: filterDisponible === 'todos' ? undefined : filterDisponible === 'si',
   };
 
   const listQ = useQuery({
     queryKey: ['productos', 'list', filters],
     queryFn: () => productosApi.list(filters),
+    placeholderData: keepPreviousData,
   });
 
   const treeQ = useQuery({

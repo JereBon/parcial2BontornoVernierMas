@@ -18,8 +18,8 @@ from ..models.rol import RolCodigo
 from ..uow.unit_of_work import UnitOfWork
 from .security import hash_password
 
-ADMIN_EMAIL = "admin@foodstore.com"
-ADMIN_PASSWORD = "Admin1234!"
+ADMIN_EMAIL = "admin@admin.com"
+ADMIN_PASSWORD = "admin12345"
 
 ROLES = [
     (RolCodigo.ADMIN.value, "Administrador"),
@@ -110,11 +110,49 @@ def seed_all(session: Session) -> None:
             # Siempre actualizar la contraseña para que coincida con la del seed
             admin.password_hash = hash_password(ADMIN_PASSWORD)
 
-    # Productos — solo si la tabla está vacía
+    # Productos y stocks — solo si la tabla está vacía (primera vez)
     with UnitOfWork(session) as uow:
         sess = uow.session
         if sess.exec(select(Producto)).first() is None:
             _seed_productos(sess)
+            _patch_stocks(sess)
+
+
+# Stocks realistas para un restaurante (unidades según el ingrediente):
+# masas/panes: unidades; carnes/quesos/vegetales: gramos; líquidos: ml
+_STOCKS_REALISTAS: dict[str, int] = {
+    "Pan brioche":               500,    # 500 panes
+    "Medallón de carne 200g":  20000,    # 100 medallones × 200 g
+    "Medallón de carne 300g":  15000,    # 50 medallones × 300 g
+    "Queso cheddar":            5000,
+    "Lechuga":                  5000,
+    "Tomate":                   5000,
+    "Cebolla caramelizada":     3000,
+    "Panceta ahumada":          3000,
+    "Masa de pizza":             200,    # 200 bases
+    "Salsa de tomate":         10000,    # 10 L
+    "Queso mozzarella":         8000,
+    "Pepperoni":                3000,
+    "Jamón cocido":             4000,
+    "Ananá en rodajas":         3000,
+    "Coca-Cola 500ml":         50000,    # 100 botellas × 500 ml
+    "Agua mineral 500ml":      60000,    # 120 botellas × 500 ml
+    "Jugo de naranja":         20000,
+    "Brownie de chocolate":      100,    # 100 unidades
+    "Helado de vainilla":      10000,
+    "Mix de verdes":            5000,
+    "Aderezo césar":            5000,
+    "Crutones":                 3000,
+    "Pechuga de pollo grillada": 5000,
+}
+
+
+def _patch_stocks(sess: Session) -> None:
+    for nombre, stock in _STOCKS_REALISTAS.items():
+        ing = sess.exec(select(Ingrediente).where(Ingrediente.nombre == nombre)).first()
+        if ing is not None:
+            ing.stock_cantidad = stock
+            sess.add(ing)
 
 
 def _seed_productos(sess: Session) -> None:
@@ -152,29 +190,29 @@ def _seed_productos(sess: Session) -> None:
         sess.flush()
         return i
 
-    pan_brioche      = ing("Pan brioche",          ud,  stock=80,  alergeno=True)
-    carne_200        = ing("Medallón de carne 200g", g, stock=120)
-    carne_300        = ing("Medallón de carne 300g", g, stock=80)
-    queso_cheddar    = ing("Queso cheddar",          g, stock=200, alergeno=True)
-    lechuga          = ing("Lechuga",                g, stock=300)
-    tomate           = ing("Tomate",                 g, stock=250)
-    cebolla          = ing("Cebolla caramelizada",   g, stock=150)
-    panceta          = ing("Panceta ahumada",        g, stock=100)
-    masa_pizza       = ing("Masa de pizza",         ud, stock=50,  alergeno=True)
-    salsa_tomate     = ing("Salsa de tomate",       ml, stock=500)
-    mozzarella       = ing("Queso mozzarella",       g, stock=300, alergeno=True)
-    pepperoni_ing    = ing("Pepperoni",              g, stock=100)
-    jamon            = ing("Jamón cocido",           g, stock=150)
-    anana            = ing("Ananá en rodajas",       g, stock=80)
-    coca             = ing("Coca-Cola 500ml",       ml, stock=200)
-    agua             = ing("Agua mineral 500ml",    ml, stock=300)
-    jugo_naranja     = ing("Jugo de naranja",       ml, stock=100)
-    brownie          = ing("Brownie de chocolate",  ud, stock=40,  alergeno=True)
-    helado_vainilla  = ing("Helado de vainilla",     g, stock=150, alergeno=True)
-    mix_verdes       = ing("Mix de verdes",          g, stock=200)
-    aderezo_cesar    = ing("Aderezo césar",         ml, stock=100)
-    crutones         = ing("Crutones",               g, stock=80,  alergeno=True)
-    pollo_grillado   = ing("Pechuga de pollo grillada", g, stock=100)
+    pan_brioche      = ing("Pan brioche",              ud, stock=500,  alergeno=True)
+    carne_200        = ing("Medallón de carne 200g",    g, stock=20000)
+    carne_300        = ing("Medallón de carne 300g",    g, stock=15000)
+    queso_cheddar    = ing("Queso cheddar",             g, stock=5000, alergeno=True)
+    lechuga          = ing("Lechuga",                   g, stock=5000)
+    tomate           = ing("Tomate",                    g, stock=5000)
+    cebolla          = ing("Cebolla caramelizada",      g, stock=3000)
+    panceta          = ing("Panceta ahumada",           g, stock=3000)
+    masa_pizza       = ing("Masa de pizza",            ud, stock=200,  alergeno=True)
+    salsa_tomate     = ing("Salsa de tomate",          ml, stock=10000)
+    mozzarella       = ing("Queso mozzarella",          g, stock=8000, alergeno=True)
+    pepperoni_ing    = ing("Pepperoni",                 g, stock=3000)
+    jamon            = ing("Jamón cocido",              g, stock=4000)
+    anana            = ing("Ananá en rodajas",          g, stock=3000)
+    coca             = ing("Coca-Cola 500ml",          ml, stock=50000)
+    agua             = ing("Agua mineral 500ml",       ml, stock=60000)
+    jugo_naranja     = ing("Jugo de naranja",          ml, stock=20000)
+    brownie          = ing("Brownie de chocolate",     ud, stock=100,  alergeno=True)
+    helado_vainilla  = ing("Helado de vainilla",        g, stock=10000, alergeno=True)
+    mix_verdes       = ing("Mix de verdes",             g, stock=5000)
+    aderezo_cesar    = ing("Aderezo césar",            ml, stock=5000)
+    crutones         = ing("Crutones",                  g, stock=3000, alergeno=True)
+    pollo_grillado   = ing("Pechuga de pollo grillada", g, stock=5000)
 
     # ── helper para crear producto ────────────────────────────────
     def prod(
@@ -220,9 +258,9 @@ def _seed_productos(sess: Session) -> None:
           (cebolla, 30, g), (queso_cheddar, 50, g)])
 
     prod("Burger Doble", 2500,
-         "Dos medallones, doble cheddar, lechuga y tomate",
+         "Dos medallones (400g), doble cheddar, lechuga y tomate",
          hamburguesas,
-         [(pan_brioche, 1, ud), (carne_200, 200, g), (carne_200, 200, g),
+         [(pan_brioche, 1, ud), (carne_200, 400, g),
           (queso_cheddar, 60, g), (lechuga, 20, g), (tomate, 30, g)])
 
     prod("Burger Pollo Grillado", 2000,

@@ -12,6 +12,7 @@ from ..schemas import (
 from ..services.ingrediente_service import IngredienteService
 from ..uow.unit_of_work import UnitOfWork
 from ..core.deps import require_roles
+from ..core.ws_manager import ws_manager
 
 router = APIRouter(prefix="/ingredientes", tags=["Ingredientes"])
 _admin_only = require_roles("ADMIN")
@@ -69,15 +70,17 @@ def update(
     response_model=IngredienteRead,
     dependencies=[Depends(_stock_or_admin)],
 )
-def patch_stock(
+async def patch_stock(
     ingrediente_id: Annotated[int, Path(ge=1)],
     payload: IngredienteStockUpdate,
     session: Session = Depends(get_session),
 ):
     with UnitOfWork(session) as uow:
-        return IngredienteService(uow.session).update(
+        result = IngredienteService(uow.session).update(
             ingrediente_id, payload  # type: ignore[arg-type]
         )
+    await ws_manager.broadcast_catalogo({"event": "stock_actualizado"})
+    return result
 
 
 @router.delete(

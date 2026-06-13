@@ -6,6 +6,7 @@ import { ProductoCard } from '../components/ProductoCard';
 import { SkeletonCards } from '../components/Skeleton';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { Pagination } from '../components/Pagination';
+import { useCatalogoWS } from '../hooks/useCatalogoWS';
 
 const LIMIT = 9;
 
@@ -37,6 +38,7 @@ function getDescendantIds(nodes: CategoriaTreeNode[], targetId: number): number[
 }
 
 export default function CatalogoPage() {
+  useCatalogoWS();
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState('');
   const [categoriaId, setCategoriaId] = useState<number | ''>('');

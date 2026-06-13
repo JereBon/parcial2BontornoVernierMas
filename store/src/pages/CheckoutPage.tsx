@@ -42,6 +42,7 @@ export default function CheckoutPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   const direccionesQ = useQuery({
     queryKey: ['direcciones'],
@@ -61,6 +62,7 @@ export default function CheckoutPage() {
       const forma = formasPagoQ.data?.find((fp) => fp.id === input.forma_pago_id);
       if (forma?.codigo === 'MERCADOPAGO') {
         const pref = await pedidosApi.crearPago(pedido.id);
+        setRedirecting(true);
         clear();
         window.location.href = pref.init_point;
         return null;
@@ -116,7 +118,7 @@ export default function CheckoutPage() {
     return <Navigate to="/login" state={{ from: { pathname: '/checkout' } }} replace />;
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && !redirecting) {
     return (
       <div className="text-center py-12">
         <h1 className="text-2xl font-bold mb-2">Tu carrito esta vacio</h1>
@@ -139,7 +141,7 @@ export default function CheckoutPage() {
           {!hasDirecciones ? (
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded p-3">
               No tenes direcciones cargadas.{' '}
-              <Link to="/direcciones" className="font-semibold underline">
+              <Link to="/direcciones?from=checkout" className="font-semibold underline">
                 Agregar una direccion
               </Link>
             </div>

@@ -5,80 +5,37 @@ Integrantes:
 - Luciano Mas
 - Valentino Vernier
 
-App fullstack para la materia **Programación 4**. Un backend FastAPI con PostgreSQL y dos frontends en React + TypeScript: uno para clientes (Store) y otro para personal interno (Admin).
+App fullstack para la materia **Programación 4**. Backend FastAPI con PostgreSQL y dos frontends en React + TypeScript: uno para clientes (Store) y otro para personal interno (Admin), con comunicación en tiempo real vía WebSockets e integración con Mercado Pago.
 
 ## Estructura
 
 ```
 parcial-prog4/
-├── backend/      FastAPI + SQLModel + PostgreSQL
-├── frontend/     Admin (puerto 5173)
-└── store/        Store (puerto 5174)
+├── backend/      FastAPI + SQLModel + PostgreSQL  (puerto 8000)
+├── frontend/     Admin                            (puerto 5173)
+└── store/        Store clientes                   (puerto 5174)
 ```
 
 ## Stack
 
-**Backend**: FastAPI · SQLModel · PostgreSQL · PyJWT · bcrypt · Pydantic v2
+**Backend**: FastAPI · SQLModel · PostgreSQL · PyJWT · bcrypt · Pydantic v2 · WebSockets  
 **Frontend**: React 19 · TypeScript · Vite · TanStack Query · TanStack Form · React Router · Axios · Tailwind CSS 4
-
-## Funcionalidad
-### Backend (`/api/v1/...`)
-- Auth con cookie JWT HttpOnly (30 min), bcrypt cost 12.
-- RBAC con 4 roles: `ADMIN`, `STOCK`, `PEDIDOS`, `CLIENT`. Relación M:N usuario-rol.
-- Catálogo: categorías jerárquicas (parent_id recursivo) + ingredientes con flag `es_alergeno` por producto + productos con `stock_cantidad`/`disponible`.
-- Pedidos con máquina de estados (6 estados), Snapshot Pattern en items y dirección, Audit Trail append-only en historial.
-- Direcciones de entrega con principal por usuario.
-- Panel de administración para gestionar usuarios y asignar roles.
-- Stock se descuenta al crear pedido y se restaura al cancelar.
-- Seed obligatorio al arrancar: roles, estados, formas de pago, admin por defecto.
-
-### Frontend Admin (puerto 5173)
-- Login y `ProtectedRoute` por rol.
-- ADMIN: CRUD de categorías, ingredientes, productos, usuarios.
-- STOCK: ajustar stock y disponibilidad.
-- PEDIDOS: pantalla "Cajero" tipo kanban para avanzar estados.
-- Polling cada 5 s para ver nuevos pedidos sin recargar.
-
-### Frontend Store (puerto 5174)
-- Catálogo público con filtros (categoría, precio, búsqueda).
-- Carrito en `localStorage` (sobrevive a refresh).
-- Refresh automático de precios contra el backend.
-- Registro + login del cliente.
-- Direcciones propias con CRUD y dirección principal.
-- Checkout con selector de dirección y forma de pago.
-- "Mis pedidos" con polling de estado en vivo.
-
-## Patrones arquitectónicos
-
-| Patrón | Implementación |
-|---|---|
-| Unit of Work | `backend/uow/unit_of_work.py`. Único lugar del proyecto que ejecuta commit/rollback. |
-| Repository | `BaseRepository[T]` genérico + repos específicos. Soft delete y eager loading transparentes. |
-| Service Layer | Lógica de negocio en `backend/services/`. Routers solo orquestan. |
-| Soft Delete | Campo `deleted_at` en todas las entidades de negocio. |
-| Snapshot Pattern | `DetallePedido` copia `producto_nombre` y `producto_precio`. Pedido guarda `direccion_snapshot` textual. |
-| Audit Trail Append-Only | `HistorialEstadoPedidoRepository` solo expone `add()` y `list_by_pedido()`. |
-| Máquina de Estados | Validada en `PedidoService._validate_transition`, nunca en el router. |
-
-Flujo obligatorio en cada mutación: **Router → Service → UnitOfWork → Repository**.
 
 ---
 
 ## Cómo correrlo
 
+Necesitás tener corriendo **tres procesos al mismo tiempo** (abrí una terminal por cada uno).
+
 ### 1. PostgreSQL
 
-Asegurate de tener PostgreSQL local. Crear la base con pgAdmin o:
+Creá la base de datos con pgAdmin o con psql:
 
 ```sql
 CREATE DATABASE parcial_db;
 ```
 
-Si tu usuario/password no es `postgres/postgres`, exportá `DATABASE_URL` antes de arrancar el backend:
-
-```powershell
-$env:DATABASE_URL = "postgresql://usuario:password@localhost:5432/parcial_db"
-```
+Si tu usuario/contraseña no es `postgres/postgres`, modificá `DATABASE_URL` en `backend/.env`.
 
 ### 2. Backend
 
@@ -91,13 +48,14 @@ cd ..
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Al arrancar se crean las tablas y corre el seed. API en `http://localhost:8000`, Swagger en `/docs`.
+Al arrancar crea las tablas y ejecuta el seed automáticamente.  
+API disponible en `http://localhost:8000` · Swagger en `http://localhost:8000/docs`
 
-**Usuario admin por defecto** (creado por el seed):
-- email: `admin@admin.com`
-- password: `admin12345`
+**Usuario admin creado por el seed:**
+- Email: `admin@admin.com`
+- Password: `admin12345`
 
-### 3. Admin
+### 3. Admin (panel interno)
 
 ```powershell
 cd frontend
@@ -105,9 +63,9 @@ npm install
 npm run dev
 ```
 
-Disponible en `http://localhost:5173`. Login con el admin del seed.
+Disponible en `http://localhost:5173`
 
-### 4. Store
+### 4. Store (clientes)
 
 ```powershell
 cd store
@@ -115,46 +73,150 @@ npm install
 npm run dev
 ```
 
-Disponible en `http://localhost:5174`. Registrate como cliente nuevo desde la UI.
+Disponible en `http://localhost:5174`  
+Registrate como cliente nuevo desde la UI.
 
 ---
 
-## Endpoints principales
+## Mercado Pago + ngrok
 
+El checkout con Mercado Pago requiere que el backend sea accesible desde internet para recibir el webhook de pago (IPN). En desarrollo se usa **ngrok** para exponer el puerto local.
+
+### Paso a paso
+
+**1. Instalá ngrok** (si no lo tenés): https://ngrok.com/download  
+Creá una cuenta gratuita y autenticá tu token:
+```powershell
+ngrok config add-authtoken <TU_TOKEN>
 ```
-POST   /api/v1/auth/register
-POST   /api/v1/auth/login
-POST   /api/v1/auth/logout
-GET    /api/v1/auth/me
 
-GET    /api/v1/categorias/         (público, paginado, filtro parent_id)
-GET    /api/v1/categorias/tree
-CRUD   /api/v1/categorias/         (ADMIN)
+**2. Levantá el backend** en el puerto 8000 (paso 2 de arriba).
 
-GET    /api/v1/productos/          (público, filtros)
-CRUD   /api/v1/productos/          (ADMIN)
-PATCH  /api/v1/productos/{id}/disponibilidad   (ADMIN, STOCK)
-
-CRUD   /api/v1/ingredientes/       (ADMIN)
-
-POST   /api/v1/pedidos/            (autenticado)
-GET    /api/v1/pedidos/me          (autenticado, propios)
-GET    /api/v1/pedidos/            (ADMIN, PEDIDOS)
-PATCH  /api/v1/pedidos/{id}/estado (ADMIN, PEDIDOS)
-POST   /api/v1/pedidos/{id}/cancelar
-
-CRUD   /api/v1/direcciones/        (autenticado, propias)
-PATCH  /api/v1/direcciones/{id}/principal
-
-GET    /api/v1/admin/usuarios      (ADMIN)
-PUT    /api/v1/admin/usuarios/{id}/roles
-DELETE /api/v1/admin/usuarios/{id}
-
-GET    /api/v1/lookups/estados-pedido
-GET    /api/v1/lookups/formas-pago
+**3. Abrí ngrok** en una terminal aparte:
+```powershell
+ngrok http 8000
 ```
+Ngrok te mostrará algo como:
+```
+Forwarding  https://abcd1234.ngrok-free.app -> http://localhost:8000
+```
+
+**4. Configurá las variables en `backend/.env`:**
+```env
+# Mercado Pago (obtenés las credenciales en https://www.mercadopago.com.ar/developers)
+MP_ACCESS_TOKEN=APP_USR-...
+MP_PUBLIC_KEY=APP_USR-...
+MP_SANDBOX=True
+
+# URL del frontend store (back_urls de MP)
+MP_STORE_URL=http://localhost:5174
+
+# URL pública del backend — la que te da ngrok (sin barra al final)
+MP_WEBHOOK_URL=https://abcd1234.ngrok-free.app
+```
+
+> Cada vez que reiniciás ngrok te da una URL distinta (en la cuenta gratuita). Actualizá `MP_WEBHOOK_URL` y reiniciá el backend.
+
+**5. Reiniciá el backend** para que tome las nuevas variables.
+
+**6. Probá el checkout** desde la Store: agregá productos al carrito, completá el checkout con Mercado Pago Sandbox y usá las [tarjetas de prueba de MP](https://www.mercadopago.com.ar/developers/es/docs/checkout-pro/integration-test/test-cards).
+
+---
+
+## Variables de entorno (`backend/.env`)
+
+Todas tienen valor por defecto excepto las de Mercado Pago:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/parcial_db
+
+# JWT
+JWT_SECRET=CHANGE_ME_IN_PROD_super_secret_key_32_chars_min
+JWT_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Mercado Pago
+MP_ACCESS_TOKEN=
+MP_PUBLIC_KEY=
+MP_SANDBOX=True
+MP_STORE_URL=http://localhost:5174
+MP_WEBHOOK_URL=
+
+# Cloudinary (opcional, para subir imágenes de productos)
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+---
+
+## Funcionalidades
+
+### Backend
+- Auth con cookie JWT HttpOnly + refresh token en cookie.
+- RBAC con 4 roles: `ADMIN`, `STOCK`, `PEDIDOS`, `CLIENT`.
+- Catálogo: categorías jerárquicas + ingredientes con `es_alergeno` + productos con `stock_cantidad` / `disponible`.
+- Pedidos con máquina de estados (PENDIENTE → CONFIRMADO → EN_PREP → ENTREGADO / CANCELADO).
+- Stock se descuenta al crear pedido y se restaura al cancelar.
+- Snapshot Pattern en items del pedido (guarda nombre y precio al momento de la compra).
+- Audit Trail append-only en historial de estados.
+- Integración Mercado Pago: preferencia de pago, webhook IPN, consulta de estado.
+- WebSockets: canal `admin` (nuevos pedidos), `pedido:{id}` (estado del pedido del cliente), `catalogo` (cambios de stock/disponibilidad).
+- Rate limiting por IP + middleware de logging y timing.
+
+### Admin (puerto 5173)
+- Login protegido por rol.
+- **ADMIN**: CRUD de categorías, ingredientes, productos, usuarios y asignación de roles.
+- **STOCK**: ajustar stock y disponibilidad de productos e ingredientes. Actualizaciones en tiempo real vía WebSocket.
+- **PEDIDOS (Cajero)**: vista kanban para avanzar estados de pedidos. Actualizaciones optimistas + WebSocket en tiempo real.
+- Dashboard con resumen.
+
+### Store (puerto 5174)
+- Catálogo público con filtros por categoría, disponibilidad, precio y búsqueda.
+- Carrito persistido en `localStorage`.
+- Registro y login de clientes.
+- Direcciones de entrega con CRUD y dirección principal.
+- Checkout: selector de dirección, forma de pago (Mercado Pago / Efectivo / Transferencia).
+- Redirección a Mercado Pago Checkout Pro y vuelta al pedido con estado del pago.
+- "Mis pedidos": historial de pedidos con estado en tiempo real vía WebSocket.
+
+---
+
+## Patrones arquitectónicos
+
+| Patrón | Implementación |
+|---|---|
+| Unit of Work | `backend/uow/unit_of_work.py`. Único lugar que ejecuta commit/rollback. |
+| Repository | `BaseRepository[T]` genérico + repos específicos. Soft delete y eager loading transparentes. |
+| Service Layer | Lógica de negocio en `backend/services/`. Routers solo orquestan. |
+| Soft Delete | Campo `deleted_at` en todas las entidades de negocio. |
+| Snapshot Pattern | `DetallePedido` copia nombre y precio al crear el pedido. |
+| Audit Trail Append-Only | `HistorialEstadoPedidoRepository` solo expone `add()` y `list_by_pedido()`. |
+| Máquina de Estados | Validada en `PedidoService._validate_transition`, nunca en el router. |
+
+Flujo obligatorio en cada mutación: **Router → Service → UnitOfWork → Repository**
+
+---
+
+## Tests
+
+```powershell
+# Crear la base de test (una sola vez)
+# En psql o pgAdmin:
+# CREATE DATABASE parcial_db_test;
+
+cd backend
+.\.venv\Scripts\activate
+cd ..
+python -m pytest tests/ -v
+```
+
+111 tests cubriendo auth, categorías, direcciones, ingredientes, middleware, pedidos y productos.
+
+---
 
 ## Notas
 
-- La base se crea automáticamente al arrancar (`SQLModel.metadata.create_all`). Para resetear, dropear la base desde pgAdmin y volver a arrancar.
-- Si venís del Parcial 1 con datos viejos, dropear y recrear la base es obligatorio porque cambió el schema.
+- La base se crea automáticamente al arrancar (`SQLModel.metadata.create_all`). Para resetear, droppear la base desde pgAdmin y volver a arrancar.
+- Si venís de una versión anterior del proyecto con datos viejos, dropeá y recreá la base porque cambió el schema.
+- Los WebSockets del admin se conectan automáticamente al loguearse. El canal del pedido del cliente se conecta al entrar en "Mis pedidos > detalle".

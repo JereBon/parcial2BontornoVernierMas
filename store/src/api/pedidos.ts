@@ -39,5 +39,5 @@ export const pedidosApi = {
       .then((r) => r.data),
 
   getPago: (pedido_id: number) =>
-    api.get(`/pagos/${pedido_id}`).then((r) => r.data),
+    api.get<import('./types').PagoRead>(`/pagos/${pedido_id}`).then((r) => r.data),
 };

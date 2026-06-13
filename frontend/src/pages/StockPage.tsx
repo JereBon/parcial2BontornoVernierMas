@@ -7,10 +7,12 @@ import type { Ingrediente } from '../api/types';
 import { SkeletonRows } from '../components/Skeleton';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { Pagination } from '../components/Pagination';
+import { useCatalogoFeed } from '../hooks/useCatalogoFeed';
 
 const LIMIT = 25;
 
 export default function StockPage() {
+  useCatalogoFeed();
   const qc = useQueryClient();
   const [tab, setTab] = useState<'ingredientes' | 'productos'>('ingredientes');
 

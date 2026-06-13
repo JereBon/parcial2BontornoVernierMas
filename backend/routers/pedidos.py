@@ -55,6 +55,7 @@ async def create_pedido(
     await ws_manager.broadcast_admin(
         _ws_evento("pedido_creado", pedido.id, None, EstadoPedidoCodigo.PENDIENTE.value, user.id, None)
     )
+    await ws_manager.broadcast_catalogo({"event": "stock_actualizado"})
     return pedido
 
 
@@ -126,6 +127,8 @@ async def cambiar_estado(
         pedido.id,
         _ws_evento(event, pedido.id, anterior.value, payload.estado.value, user.id, payload.motivo),
     )
+    if payload.estado == EstadoPedidoCodigo.CANCELADO:
+        await ws_manager.broadcast_catalogo({"event": "stock_actualizado"})
     return pedido
 
 
@@ -142,6 +145,7 @@ async def cancelar(
         pedido.id,
         _ws_evento("pedido_cancelado", pedido.id, anterior.value, EstadoPedidoCodigo.CANCELADO.value, user.id, payload.motivo),
     )
+    await ws_manager.broadcast_catalogo({"event": "stock_actualizado"})
     return pedido
 
 
@@ -159,6 +163,7 @@ async def cancelar_delete(
         pedido.id,
         _ws_evento("pedido_cancelado", pedido.id, anterior.value, EstadoPedidoCodigo.CANCELADO.value, user.id, payload.motivo),
     )
+    await ws_manager.broadcast_catalogo({"event": "stock_actualizado"})
     return pedido
 
 

@@ -30,6 +30,10 @@ export function useOrderStatusWS(pedidoId: number | undefined) {
   );
   const [lastEvent, setLastEvent] = useState<WSEvento | null>(lastStoredEvent);
 
+  // Reactivo al token: si el token llega después del primer render (rehydration),
+  // el efecto se re-ejecuta y conecta el WS.
+  const accessToken = useAuthStore((s) => s.accessToken);
+
   const attemptRef = useRef(0);
   const wsRef = useRef<WebSocket | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,6 +41,7 @@ export function useOrderStatusWS(pedidoId: number | undefined) {
 
   useEffect(() => {
     if (!pedidoId || Number.isNaN(pedidoId)) return;
+    if (!accessToken) return;
 
     unmountedRef.current = false;
     attemptRef.current = 0;
@@ -75,6 +80,9 @@ export function useOrderStatusWS(pedidoId: number | undefined) {
         setConnected(false);
         wsRef.current = null;
 
+        // 4001 = el backend rechazó el token explícitamente → intentar refresh
+        // Para cualquier otro código (1006 blip de red, 1005, 1000, etc.) → solo reconectar
+        // NO llamar clearAuth() por un blip de red: eso borra la sesión del usuario
         if (evt.code === 4001) {
           try {
             const refreshData = await authApi.refresh();
@@ -119,7 +127,7 @@ export function useOrderStatusWS(pedidoId: number | undefined) {
       }
       setConnected(false);
     };
-  }, [pedidoId, qc, setConnected]);
+  }, [pedidoId, qc, setConnected, accessToken]);
 
   return { connected, lastEvent };
 }

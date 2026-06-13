@@ -29,8 +29,46 @@ export default function CajeroPage() {
   const cambiarMut = useMutation({
     mutationFn: ({ id, estado }: { id: number; estado: EstadoPedidoCodigo }) =>
       pedidosApi.cambiarEstado(id, estado),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pedidos'] }),
-    onError: (err) => setErrorMsg((err as Error).message),
+    onMutate: ({ id, estado: nuevoEstado }) => {
+      // Buscar el pedido en cualquier columna
+      let pedidoToMove: Pedido | undefined;
+      let sourceCol: EstadoPedidoCodigo | undefined;
+      for (const col of COLUMNS) {
+        const data = qc.getQueryData<{ items: Pedido[]; total: number }>(['pedidos', 'cajero', col]);
+        const found = data?.items.find((p) => p.id === id);
+        if (found) { pedidoToMove = found; sourceCol = col; break; }
+      }
+
+      if (pedidoToMove && sourceCol) {
+        // Sacar de columna origen
+        qc.setQueryData<{ items: Pedido[]; total: number }>(
+          ['pedidos', 'cajero', sourceCol],
+          (old) => old ? { ...old, items: old.items.filter((p) => p.id !== id) } : old,
+        );
+        // Agregar en columna destino (solo si es una columna visible — no ENTREGADO)
+        if ((COLUMNS as string[]).includes(nuevoEstado)) {
+          const moved: Pedido = { ...pedidoToMove, estado: { ...pedidoToMove.estado, codigo: nuevoEstado } };
+          qc.setQueryData<{ items: Pedido[]; total: number }>(
+            ['pedidos', 'cajero', nuevoEstado],
+            (old) => old ? { ...old, items: [moved, ...old.items] } : old,
+          );
+        }
+      }
+
+      return { pedidoToMove, sourceCol };
+    },
+    onError: (err, _vars, ctx) => {
+      setErrorMsg((err as Error).message);
+      // Revertir el move optimista
+      if (ctx?.pedidoToMove && ctx.sourceCol) {
+        qc.setQueryData<{ items: Pedido[]; total: number }>(
+          ['pedidos', 'cajero', ctx.sourceCol],
+          (old) => old ? { ...old, items: [ctx.pedidoToMove!, ...old.items] } : old,
+        );
+      }
+      qc.invalidateQueries({ queryKey: ['pedidos', 'cajero'] });
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['pedidos', 'cajero'] }),
   });
 
   return (
@@ -68,7 +106,7 @@ function ColumnaEstado({ estado, label, siguiente, isPending, onAdvance }: ColPr
   const q = useQuery({
     queryKey: ['pedidos', 'cajero', estado],
     queryFn: () => pedidosApi.listAll({ estado, size: 50 }),
-    // Polling removed — data is refreshed via WebSocket invalidation in useAdminOrdersFeed
+    refetchInterval: 8_000,
   });
 
   return (

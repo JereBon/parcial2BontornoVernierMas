@@ -23,7 +23,18 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Logs y bases de datos locales (opcional, por si acaso)
+# Logs y bases de datos locales
 *.sqlite
 *.sqlite3
 *.log
+
+# Tests / coverage
+.coverage
+.pytest_cache/
+
+# Claude Code (sesiones locales, no va al repo)
+.claude/
+
+# Documentos de cátedra
+*.docx
+*.txt

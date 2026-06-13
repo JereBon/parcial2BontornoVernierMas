@@ -17,6 +17,7 @@ from ..services.producto_service import ProductoService
 from ..repositories.producto_repository import ProductoRepository, compute_stock_disponible
 from ..uow.unit_of_work import UnitOfWork
 from ..core.deps import require_roles
+from ..core.ws_manager import ws_manager
 
 
 class ImagenesUpdate(BaseModel):
@@ -123,10 +124,12 @@ def read_one(
     status_code=201,
     dependencies=[Depends(_admin_only)],
 )
-def create(payload: ProductoCreate, session: Session = Depends(get_session)):
+async def create(payload: ProductoCreate, session: Session = Depends(get_session)):
     with UnitOfWork(session) as uow:
         prod = ProductoService(uow.session).create(payload)
-        return _serialize_full(uow.session, prod)
+        result = _serialize_full(uow.session, prod)
+    await ws_manager.broadcast_catalogo({"event": "catalogo_actualizado"})
+    return result
 
 
 @router.put(
@@ -134,14 +137,16 @@ def create(payload: ProductoCreate, session: Session = Depends(get_session)):
     response_model=ProductoReadFull,
     dependencies=[Depends(_admin_only)],
 )
-def update(
+async def update(
     producto_id: Annotated[int, Path(ge=1)],
     payload: ProductoUpdate,
     session: Session = Depends(get_session),
 ):
     with UnitOfWork(session) as uow:
         prod = ProductoService(uow.session).update(producto_id, payload)
-        return _serialize_full(uow.session, prod)
+        result = _serialize_full(uow.session, prod)
+    await ws_manager.broadcast_catalogo({"event": "catalogo_actualizado"})
+    return result
 
 
 @router.patch(
@@ -149,14 +154,16 @@ def update(
     response_model=ProductoReadFull,
     dependencies=[Depends(_admin_or_stock)],
 )
-def patch_disponibilidad(
+async def patch_disponibilidad(
     producto_id: Annotated[int, Path(ge=1)],
     payload: ProductoDisponibilidadUpdate,
     session: Session = Depends(get_session),
 ):
     with UnitOfWork(session) as uow:
         prod = ProductoService(uow.session).patch_disponibilidad(producto_id, payload)
-        return _serialize_full(uow.session, prod)
+        result = _serialize_full(uow.session, prod)
+    await ws_manager.broadcast_catalogo({"event": "stock_actualizado", "producto_id": producto_id})
+    return result
 
 
 @router.patch(
@@ -214,7 +221,7 @@ def set_ingredientes(
     response_model=ProductoReadFull,
     dependencies=[Depends(_admin_or_stock)],
 )
-def patch_stock(
+async def patch_stock(
     producto_id: Annotated[int, Path(ge=1)],
     payload: ProductoStockUpdate,
     session: Session = Depends(get_session),
@@ -227,12 +234,15 @@ def patch_stock(
         prod.stock_cantidad = payload.stock_cantidad
         uow.session.add(prod)
         uow.session.flush()
-        return _serialize_full(uow.session, prod)
+        result = _serialize_full(uow.session, prod)
+    await ws_manager.broadcast_catalogo({"event": "stock_actualizado", "producto_id": producto_id})
+    return result
 
 
 @router.delete("/{producto_id}", status_code=204, dependencies=[Depends(_admin_only)])
-def remove(
+async def remove(
     producto_id: Annotated[int, Path(ge=1)], session: Session = Depends(get_session)
 ):
     with UnitOfWork(session) as uow:
         ProductoService(uow.session).delete(producto_id)
+    await ws_manager.broadcast_catalogo({"event": "catalogo_actualizado"})

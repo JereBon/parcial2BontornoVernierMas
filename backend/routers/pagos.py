@@ -34,14 +34,16 @@ def _sdk() -> mercadopago.SDK:
 
 
 def _build_preference(pedido, idempotency_key: str) -> dict:
-    base = settings.MP_STORE_URL
-    ngrok = (
-        settings.MP_WEBHOOK_URL.replace("/api/v1/pagos/webhook", "")
-        if settings.MP_WEBHOOK_URL
-        else ""
-    )
-    back_base = ngrok if ngrok else base
-    skip = "&ngrok-skip-browser-warning=1" if ngrok else ""
+    # back_urls deben ser URLs públicas para que auto_return funcione.
+    # MP_STORE_NGROK_URL = ngrok apuntando al FRONTEND (5174).
+    # Se agrega ngrok-skip-browser-warning=1 igual que TP9 para evitar el interstitial.
+    if settings.MP_STORE_NGROK_URL:
+        retorno_url = f"{settings.MP_STORE_NGROK_URL}/mp/retorno?ngrok-skip-browser-warning=1"
+        use_auto_return = True
+    else:
+        store_base = settings.MP_STORE_URL or "http://localhost:5174"
+        retorno_url = f"{store_base}/mp/retorno"
+        use_auto_return = False
 
     items = [
         {
@@ -65,11 +67,11 @@ def _build_preference(pedido, idempotency_key: str) -> dict:
     data = {
         "items": items,
         "back_urls": {
-            "success": f"{back_base}/api/v1/pagos/retorno?status=approved{skip}",
-            "failure": f"{back_base}/api/v1/pagos/retorno?status=failure{skip}",
-            "pending": f"{back_base}/api/v1/pagos/retorno?status=pending{skip}",
+            "success": retorno_url,
+            "failure": retorno_url,
+            "pending": retorno_url,
         },
-        "auto_return": "approved",
+        **({"auto_return": "approved"} if use_auto_return else {}),
         "external_reference": str(pedido.id),
         "statement_descriptor": "FoodStore",
         **({"notification_url": settings.MP_WEBHOOK_URL} if settings.MP_WEBHOOK_URL else {}),
@@ -264,6 +266,18 @@ async def mp_webhook(request: Request, session: Session = Depends(get_session)):
     return {"ok": True}
 
 
+@router.get("/retorno", include_in_schema=False)
+def mp_retorno(request: Request):
+    """Redirect de vuelta al store tras pago en MercadoPago."""
+    mp_status = request.query_params.get("status", "")
+    pedido_id = request.query_params.get("external_reference", "")
+    if pedido_id:
+        return RedirectResponse(
+            url=f"{settings.MP_STORE_URL}/mis-pedidos/{pedido_id}?mp={mp_status}"
+        )
+    return RedirectResponse(url=f"{settings.MP_STORE_URL}/mis-pedidos")
+
+
 @router.get("/{pedido_id}", response_model=PagoRead)
 def get_pago(
     pedido_id: int,
@@ -276,15 +290,3 @@ def get_pago(
     if pago is None:
         raise HTTPException(status_code=404, detail="Pago no encontrado para este pedido")
     return pago
-
-
-@router.get("/retorno", include_in_schema=False)
-def mp_retorno(request: Request):
-    """Redirect de vuelta al store tras pago en MercadoPago."""
-    mp_status = request.query_params.get("status", "")
-    pedido_id = request.query_params.get("external_reference", "")
-    if pedido_id:
-        return RedirectResponse(
-            url=f"{settings.MP_STORE_URL}/mis-pedidos/{pedido_id}?mp={mp_status}"
-        )
-    return RedirectResponse(url=f"{settings.MP_STORE_URL}/mis-pedidos")

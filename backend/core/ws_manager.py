@@ -42,5 +42,9 @@ class WSManager:
         """Broadcast only to admin/staff channel."""
         await self._broadcast("admin", evento)
 
+    async def broadcast_catalogo(self, evento: dict) -> None:
+        """Broadcast catalog/stock updates to all store clients."""
+        await self._broadcast("catalogo", evento)
+
 
 ws_manager = WSManager()

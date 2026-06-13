@@ -22,7 +22,7 @@ export interface ProductoFilters {
   page?: number;
   size?: number;
   nombre?: string;
-  categoria_id?: number;
+  categoria_ids?: number[];
   disponible?: boolean;
   precio_min?: number;
   precio_max?: number;
@@ -33,8 +33,13 @@ export interface DisponibilidadInput {
 }
 
 export const productosApi = {
-  list: (filters: ProductoFilters = {}) =>
-    api.get<Paginated<Producto>>('/productos/', { params: filters }).then((r) => r.data),
+  list: (filters: ProductoFilters = {}) => {
+    const { categoria_ids, ...rest } = filters;
+    return api.get<Paginated<Producto>>('/productos/', {
+      params: categoria_ids?.length ? { ...rest, categoria_ids } : rest,
+      paramsSerializer: { indexes: null },
+    }).then((r) => r.data);
+  },
 
   get: (id: number) =>
     api.get<Producto>(`/productos/${id}`).then((r) => r.data),

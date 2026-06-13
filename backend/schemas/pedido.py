@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 from ..models.estado_pedido import EstadoPedidoCodigo
 from .lookups import EstadoPedidoRead, FormaPagoRead
 from .direccion import DireccionRead
@@ -21,12 +21,6 @@ class PedidoCreate(BaseModel):
 class EstadoUpdate(BaseModel):
     estado: EstadoPedidoCodigo
     motivo: Optional[str] = Field(default=None, max_length=500)
-
-    @model_validator(mode="after")
-    def motivo_requerido_al_cancelar(self) -> "EstadoUpdate":
-        if self.estado == EstadoPedidoCodigo.CANCELADO and not self.motivo:
-            raise ValueError("El motivo es obligatorio al cancelar un pedido (RN-05)")
-        return self
 
 
 class CancelarPedido(BaseModel):

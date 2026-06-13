@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import type { Producto } from '../api/types';
 import { useCart } from '../cart/CartContext';
+import { useToastStore } from '../stores/toastStore';
 
 export function ProductoCard({ producto }: { producto: Producto }) {
   const { addItem } = useCart();
+  const pushToast = useToastStore((s) => s.push);
   const noStock = producto.stock_disponible <= 0;
   const sinStockODispo = !producto.disponible || noStock;
 
@@ -15,6 +17,7 @@ export function ProductoCard({ producto }: { producto: Producto }) {
       nombre: producto.nombre,
       precio: producto.precio_base,
     });
+    pushToast(`${producto.nombre} agregado al carrito`, 'success');
   };
 
   const alergenos = producto.producto_ingredientes

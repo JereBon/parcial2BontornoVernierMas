@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from '@tanstack/react-form';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { direccionesApi, type DireccionInput } from '../api/direcciones';
 import type { DireccionEntrega } from '../api/types';
 import { Skeleton } from '../components/Skeleton';
@@ -8,6 +9,9 @@ import { ErrorBanner } from '../components/ErrorBanner';
 
 export default function DireccionesPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromCheckout = searchParams.get('from') === 'checkout';
   const [editing, setEditing] = useState<DireccionEntrega | null>(null);
   const [adding, setAdding] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -22,6 +26,7 @@ export default function DireccionesPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['direcciones'] });
       setAdding(false);
+      if (fromCheckout) navigate('/checkout');
     },
     onError: (err) => setErrorMsg((err as Error).message),
   });

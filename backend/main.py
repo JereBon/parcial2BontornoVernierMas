@@ -42,8 +42,11 @@ app = FastAPI(title="FoodStore API", lifespan=lifespan, version="3.0.0")
 register_exception_handlers(app)
 
 # Middleware order (applied in reverse — last added = outermost):
-# Request flow: RateLimit → Logging → Timing → CORS → route
-# Response flow: route → CORS → Timing → Logging → RateLimit
+# Request flow: CORS → RateLimit → Logging → Timing → route
+# CORS must be outermost so ALL responses (including 429s) carry the header.
+app.add_middleware(TimingMiddleware)
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -51,9 +54,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(TimingMiddleware)
-app.add_middleware(LoggingMiddleware)
-app.add_middleware(RateLimitMiddleware)
 
 API_PREFIX = "/api/v1"
 app.include_router(auth.router, prefix=API_PREFIX)

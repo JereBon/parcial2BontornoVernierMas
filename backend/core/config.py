@@ -26,14 +26,16 @@ class Settings(BaseSettings):
     MP_PUBLIC_KEY: str = ""
     MP_SANDBOX: bool = True
     MP_STORE_URL: str = "http://localhost:5174"
-    MP_WEBHOOK_URL: str = ""
+    MP_STORE_NGROK_URL: str = ""                # ngrok apuntando al FRONTEND (5174) — para back_urls
+    MP_API_URL: str = "http://localhost:8000"   # base del backend local
+    MP_WEBHOOK_URL: str = ""                    # URL pública para IPN (ngrok → backend 8000)
     # Cloudinary
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
     # Rate limiting
-    RATE_LIMIT_DEFAULT_BURST: int = 60
-    RATE_LIMIT_DEFAULT_PER_MINUTE: float = 300.0
+    RATE_LIMIT_DEFAULT_BURST: int = 200
+    RATE_LIMIT_DEFAULT_PER_MINUTE: float = 600.0
     RATE_LIMIT_AUTH_BURST: int = 5
     RATE_LIMIT_AUTH_PER_MINUTE: float = 0.333  # 5 intentos / 15 min
 

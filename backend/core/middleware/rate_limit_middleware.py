@@ -78,6 +78,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return request.client.host if request.client else "unknown"
 
     async def dispatch(self, request: Request, call_next):
+        if request.scope["type"] == "websocket":
+            return await call_next(request)
+
         path = request.url.path
         if path in _EXCLUDED_PATHS:
             return await call_next(request)

@@ -123,3 +123,17 @@ export interface PedidoFull extends Pedido {
   detalles: DetallePedido[];
   historial: HistorialEstadoPedido[];
 }
+
+export interface PagoRead {
+  id: number;
+  pedido_id: number;
+  mp_payment_id: string | null;
+  mp_preference_id: string | null;
+  mp_status: string | null;
+  mp_status_detail: string | null;
+  transaction_amount: number;
+  payment_method_id: string | null;
+  external_reference: string | null;
+  created_at: string;
+  updated_at: string;
+}
