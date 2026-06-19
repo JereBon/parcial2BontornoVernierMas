@@ -162,6 +162,9 @@ MP_SANDBOX=True
 # URL del frontend store (back_urls de MP)
 MP_STORE_URL=http://localhost:5174
 
+# URL pública del backend
+MP_STORE_NGROK_URL=https://abcd1234.ngrok-free.app
+
 # URL pública del backend + el path del endpoint de webhook (backend/routers/pagos.py: @router.post("/webhook"))
 # OJO: el path /api/v1/pagos/webhook es OBLIGATORIO. Si ponés solo la URL de ngrok sin el path,
 # Mercado Pago va a pegarle a la raíz "/" y vas a ver errores 405 Method Not Allowed en los logs del backend.
@@ -194,6 +197,7 @@ MP_ACCESS_TOKEN=
 MP_PUBLIC_KEY=
 MP_SANDBOX=True
 MP_STORE_URL=http://localhost:5174
+MP_STORE_NGROK_URL=
 MP_WEBHOOK_URL=
 
 # Cloudinary (opcional, para subir imágenes de productos)
