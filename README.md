@@ -4,6 +4,7 @@ Integrantes:
 - Jeremías Bontorno
 - Luciano Mas
 - Valentino Vernier
+Link Video: https://youtu.be/JGA0hneEFPc
 
 App fullstack para la materia **Programación 4**. Backend FastAPI con PostgreSQL y dos frontends en React + TypeScript: uno para clientes (Store) y otro para personal interno (Admin), con comunicación en tiempo real vía WebSockets e integración con Mercado Pago.
 
@@ -27,6 +28,12 @@ parcial-prog4/
 
 Necesitás tener corriendo **tres procesos al mismo tiempo** (abrí una terminal por cada uno).
 
+> **Atajo en Linux**: el script `run.sh` hace todo esto automático (crea la base si no existe, genera `.env`, crea el venv, instala dependencias de backend y frontends, libera los puertos 8000/5173/5174 si están ocupados y abre las 3 tabs en `gnome-terminal`):
+> ```bash
+> ./run.sh
+> ```
+> Si no usás `gnome-terminal` o preferís controlarlo a mano, seguí los pasos manuales de abajo.
+
 ### 1. PostgreSQL
 
 Creá la base de datos con pgAdmin o con psql:
@@ -39,10 +46,39 @@ Si tu usuario/contraseña no es `postgres/postgres`, modificá `DATABASE_URL` en
 
 ### 2. Backend
 
+Primero creá el archivo `.env` a partir de la plantilla (una sola vez):
+
+**Windows (PowerShell):**
 ```powershell
 cd backend
+copy .env.example .env
+```
+
+**Linux / macOS (bash):**
+```bash
+cd backend
+cp .env.example .env
+```
+
+Después completá `JWT_SECRET` con un valor generado (no dejes el placeholder del `.env.example`):
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+Pegá el resultado en `JWT_SECRET=` dentro de `backend/.env`. Y si vas a usar el checkout, completá también las variables de Mercado Pago (ver sección de abajo).
+
+**Windows (PowerShell):**
+```powershell
 python -m venv .venv
 .\.venv\Scripts\activate
+pip install -r requirements.txt
+cd ..
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Linux / macOS (bash):**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 cd ..
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
@@ -57,7 +93,8 @@ API disponible en `http://localhost:8000` · Swagger en `http://localhost:8000/d
 
 ### 3. Admin (panel interno)
 
-```powershell
+**Windows (PowerShell) / Linux / macOS (bash):**
+```bash
 cd frontend
 npm install
 npm run dev
@@ -67,7 +104,7 @@ Disponible en `http://localhost:5173`
 
 ### 4. Store (clientes)
 
-```powershell
+```bash
 cd store
 npm install
 npm run dev
@@ -84,16 +121,28 @@ El checkout con Mercado Pago requiere que el backend sea accesible desde interne
 
 ### Paso a paso
 
-**1. Instalá ngrok** (si no lo tenés): https://ngrok.com/download  
-Creá una cuenta gratuita y autenticá tu token:
-```powershell
+**1. Instalá ngrok** (si no lo tenés): https://ngrok.com/download
+
+- **Windows**: descargá el `.exe` desde el link de arriba.
+- **Linux (snap)**: `sudo snap install ngrok`
+- **Linux (binario)**:
+  ```bash
+  curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+    | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+    && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+    | sudo tee /etc/apt/sources.list.d/ngrok.list \
+    && sudo apt update && sudo apt install ngrok
+  ```
+
+Creá una cuenta gratuita y autenticá tu token (mismo comando en Windows/Linux/macOS):
+```bash
 ngrok config add-authtoken <TU_TOKEN>
 ```
 
 **2. Levantá el backend** en el puerto 8000 (paso 2 de arriba).
 
 **3. Abrí ngrok** en una terminal aparte:
-```powershell
+```bash
 ngrok http 8000
 ```
 Ngrok te mostrará algo como:
@@ -103,7 +152,9 @@ Forwarding  https://abcd1234.ngrok-free.app -> http://localhost:8000
 
 **4. Configurá las variables en `backend/.env`:**
 ```env
-# Mercado Pago (obtenés las credenciales en https://www.mercadopago.com.ar/developers)
+# Mercado Pago — usá las "Credenciales de prueba" (sandbox) de tu panel de developers,
+# NO las de producción. Las dos pueden empezar con APP_USR-, fijate en qué sección del
+# panel las copiaste. Nunca las compartas/pegues en chats o commits.
 MP_ACCESS_TOKEN=APP_USR-...
 MP_PUBLIC_KEY=APP_USR-...
 MP_SANDBOX=True
@@ -111,11 +162,13 @@ MP_SANDBOX=True
 # URL del frontend store (back_urls de MP)
 MP_STORE_URL=http://localhost:5174
 
-# URL pública del backend — la que te da ngrok (sin barra al final)
-MP_WEBHOOK_URL=https://abcd1234.ngrok-free.app
+# URL pública del backend + el path del endpoint de webhook (backend/routers/pagos.py: @router.post("/webhook"))
+# OJO: el path /api/v1/pagos/webhook es OBLIGATORIO. Si ponés solo la URL de ngrok sin el path,
+# Mercado Pago va a pegarle a la raíz "/" y vas a ver errores 405 Method Not Allowed en los logs del backend.
+MP_WEBHOOK_URL=https://abcd1234.ngrok-free.app/api/v1/pagos/webhook
 ```
 
-> Cada vez que reiniciás ngrok te da una URL distinta (en la cuenta gratuita). Actualizá `MP_WEBHOOK_URL` y reiniciá el backend.
+> Cada vez que reiniciás ngrok te da una URL distinta (en la cuenta gratuita). Actualizá `MP_WEBHOOK_URL` (manteniendo el path `/api/v1/pagos/webhook`) y reiniciá el backend.
 
 **5. Reiniciá el backend** para que tome las nuevas variables.
 
@@ -130,12 +183,13 @@ Todas tienen valor por defecto excepto las de Mercado Pago:
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/parcial_db
 
-# JWT
+# JWT — generá el secreto con: python3 -c "import secrets; print(secrets.token_hex(32))"
+# No dejes el placeholder de abajo, con eso cualquiera puede forjar tokens válidos.
 JWT_SECRET=CHANGE_ME_IN_PROD_super_secret_key_32_chars_min
 JWT_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
-# Mercado Pago
+# Mercado Pago — MP_WEBHOOK_URL debe incluir el path completo: <ngrok>/api/v1/pagos/webhook
 MP_ACCESS_TOKEN=
 MP_PUBLIC_KEY=
 MP_SANDBOX=True
@@ -200,15 +254,22 @@ Flujo obligatorio en cada mutación: **Router → Service → UnitOfWork → Rep
 
 ## Tests
 
-```powershell
-# Crear la base de test (una sola vez)
-# En psql o pgAdmin:
-# CREATE DATABASE parcial_db_test;
+Crear la base de test una sola vez (en psql o pgAdmin): `CREATE DATABASE parcial_db_test;`
 
+**Windows (PowerShell):**
+```powershell
 cd backend
 .\.venv\Scripts\activate
 cd ..
 python -m pytest tests/ -v
+```
+
+**Linux / macOS (bash):**
+```bash
+cd backend
+source .venv/bin/activate
+cd ..
+python3 -m pytest tests/ -v
 ```
 
 111 tests cubriendo auth, categorías, direcciones, ingredientes, middleware, pedidos y productos.
