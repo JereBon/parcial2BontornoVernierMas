@@ -38,7 +38,7 @@ def _build_preference(pedido, idempotency_key: str) -> dict:
     # MP_STORE_NGROK_URL = ngrok apuntando al FRONTEND (5174).
     # Se agrega ngrok-skip-browser-warning=1 igual que TP9 para evitar el interstitial.
     if settings.MP_STORE_NGROK_URL:
-        retorno_url = f"{settings.MP_STORE_NGROK_URL}/mp/retorno?ngrok-skip-browser-warning=1"
+        retorno_url = f"{settings.MP_STORE_NGROK_URL}/api/v1/pagos/retorno?ngrok-skip-browser-warning=1"
         use_auto_return = True
     else:
         store_base = settings.MP_STORE_URL or "http://localhost:5174"
@@ -269,7 +269,7 @@ async def mp_webhook(request: Request, session: Session = Depends(get_session)):
 @router.get("/retorno", include_in_schema=False)
 def mp_retorno(request: Request):
     """Redirect de vuelta al store tras pago en MercadoPago."""
-    mp_status = request.query_params.get("status", "")
+    mp_status = request.query_params.get("collection_status") or request.query_params.get("status") or ""
     pedido_id = request.query_params.get("external_reference", "")
     if pedido_id:
         return RedirectResponse(
