@@ -46,6 +46,8 @@ class IngredienteCreate(BaseModel):
     es_alergeno: bool = False
     stock_cantidad: int = Field(default=0, ge=0)
     unidad_medida_id: int = Field(..., ge=1)
+    # Precio-costo por unidad canónica (kg / L / unidad).
+    precio_costo: Decimal = Field(default=Decimal("0"), ge=0, decimal_places=2)
 
 
 class IngredienteUpdate(BaseModel):
@@ -54,6 +56,7 @@ class IngredienteUpdate(BaseModel):
     es_alergeno: Optional[bool] = None
     stock_cantidad: Optional[int] = Field(default=None, ge=0)
     unidad_medida_id: Optional[int] = Field(default=None, ge=1)
+    precio_costo: Optional[Decimal] = Field(default=None, ge=0, decimal_places=2)
 
 
 class IngredienteStockUpdate(BaseModel):
@@ -66,6 +69,7 @@ class IngredienteRead(BaseModel):
     descripcion: Optional[str] = None
     es_alergeno: bool
     stock_cantidad: int
+    precio_costo: Decimal = Decimal("0")
     unidad_medida: Optional[UnidadMedidaRead] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -89,7 +93,11 @@ class ProductoIngredienteRead(BaseModel):
 
 class ProductoCreate(BaseModel):
     nombre: str = Field(..., min_length=2, max_length=150)
-    precio_base: float = Field(..., gt=0)
+    # precio_base es ignorado en el input: se calcula desde el costo de
+    # insumos y el margen. Se acepta por compatibilidad pero no se usa.
+    precio_base: Optional[float] = Field(default=None, ge=0)
+    # Margen de ganancia (%) del producto.
+    margen_ganancia: Decimal = Field(default=Decimal("0"), ge=0, decimal_places=2)
     descripcion: Optional[str] = Field(default=None)
     imagenes_url: Optional[List[str]] = Field(default=None)
     disponible: bool = True
@@ -100,7 +108,8 @@ class ProductoCreate(BaseModel):
 
 class ProductoUpdate(BaseModel):
     nombre: Optional[str] = Field(default=None, min_length=2, max_length=150)
-    precio_base: Optional[float] = Field(default=None, gt=0)
+    precio_base: Optional[float] = Field(default=None, ge=0)
+    margen_ganancia: Optional[Decimal] = Field(default=None, ge=0, decimal_places=2)
     descripcion: Optional[str] = Field(default=None)
     imagenes_url: Optional[List[str]] = Field(default=None)
     disponible: Optional[bool] = None
@@ -123,6 +132,7 @@ class ProductoRead(BaseModel):
     id: int
     nombre: str
     precio_base: float
+    margen_ganancia: Decimal = Decimal("0")
     descripcion: Optional[str] = None
     imagenes_url: Optional[List[str]] = None
     disponible: bool
@@ -133,6 +143,8 @@ class ProductoRead(BaseModel):
 
 
 class ProductoReadFull(ProductoRead):
+    # Costo total calculado a partir de los insumos (solo lectura).
+    costo_total: Decimal = Decimal("0")
     categorias: List[CategoriaRead] = []
     producto_ingredientes: List[ProductoIngredienteRead] = []
     model_config = ConfigDict(from_attributes=True)

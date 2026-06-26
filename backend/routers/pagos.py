@@ -19,6 +19,7 @@ from ..models.pedido import Pago
 from ..repositories.lookups import EstadoPedidoRepository, FormaPagoRepository
 from ..repositories.pago_repository import PagoRepository
 from ..repositories.pedido_repository import PedidoRepository
+from ..repositories.usuario_repository import UsuarioRepository
 from ..schemas.pedido import PagoRead, PagoResponse
 from ..services.pedido_service import PedidoService
 from ..uow.unit_of_work import UnitOfWork
@@ -241,7 +242,7 @@ async def mp_webhook(request: Request, session: Session = Depends(get_session)):
         else:
             return {"ok": True}
 
-        sys_user = session.exec(select(Usuario)).first()
+        sys_user = UsuarioRepository(session).get_first_with_roles()
 
         with UnitOfWork(session) as uow:
             pedido_upd, anterior = PedidoService(uow.session).cambiar_estado(

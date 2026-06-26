@@ -1,0 +1,16 @@
+mercadopago
+fastapi
+uvicorn[standard]
+sqlmodel
+psycopg2-binary
+pydantic
+pydantic-settings
+sqlalchemy
+bcrypt
+pyjwt
+email-validator
+python-multipart
+cloudinary
+websockets
+pytest
+httpx

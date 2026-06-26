@@ -138,6 +138,58 @@ class ProductoRepository(BaseRepository[Producto]):
             ).all()
         )
 
+    def replace_categorias(self, producto_id: int, categoria_ids: list[int]) -> None:
+        for pc in self.session.exec(
+            select(ProductoCategoria).where(
+                ProductoCategoria.producto_id == producto_id
+            )
+        ).all():
+            self.session.delete(pc)
+        self.session.flush()
+        for cid in categoria_ids:
+            self.session.add(
+                ProductoCategoria(producto_id=producto_id, categoria_id=cid)
+            )
+        self.session.flush()
+
+    def replace_ingredientes(
+        self, producto_id: int, items: list[ProductoIngrediente]
+    ) -> None:
+        for pi in self.session.exec(
+            select(ProductoIngrediente).where(
+                ProductoIngrediente.producto_id == producto_id
+            )
+        ).all():
+            self.session.delete(pi)
+        self.session.flush()
+        for it in items:
+            self.session.add(it)
+        self.session.flush()
+
+    def ids_using_ingrediente(self, ingrediente_id: int) -> list[int]:
+        return list(
+            self.session.exec(
+                select(ProductoIngrediente.producto_id).where(
+                    ProductoIngrediente.ingrediente_id == ingrediente_id
+                )
+            ).all()
+        )
+
+    def set_unidad_for_ingrediente(
+        self, ingrediente_id: int, unidad_medida_id: int
+    ) -> None:
+        """Propaga la unidad de medida de un insumo a todos los productos que lo
+        usan, para que el modal de producto refleje el cambio aplicado."""
+        links = self.session.exec(
+            select(ProductoIngrediente).where(
+                ProductoIngrediente.ingrediente_id == ingrediente_id
+            )
+        ).all()
+        for link in links:
+            link.unidad_medida_id = unidad_medida_id
+            self.session.add(link)
+        self.session.flush()
+
     def count_active_by_categoria(self, categoria_id: int) -> int:
         stmt = (
             select(func.count())

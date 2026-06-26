@@ -13,6 +13,7 @@ from ..models.estado_pedido import (
 from ..repositories.pedido_repository import PedidoRepository
 from ..repositories.producto_repository import ProductoRepository, _to_base, _FACTOR
 from ..repositories.direccion_repository import DireccionRepository
+from ..repositories.ingrediente_repository import IngredienteRepository
 from ..repositories.historial_pedido_repository import HistorialEstadoPedidoRepository
 from ..repositories.lookups import EstadoPedidoRepository, FormaPagoRepository
 from ..schemas.pedido import PedidoCreate
@@ -28,6 +29,7 @@ class PedidoService:
         self.repo = PedidoRepository(session)
         self.prod_repo = ProductoRepository(session)
         self.dir_repo = DireccionRepository(session)
+        self.ing_repo = IngredienteRepository(session)
         self.estado_repo = EstadoPedidoRepository(session)
         self.forma_pago_repo = FormaPagoRepository(session)
         self.historial_repo = HistorialEstadoPedidoRepository(session)
@@ -110,7 +112,7 @@ class PedidoService:
 
     def _check_ingredient_stock(self, decrements: dict[int, float]) -> None:
         for ing_id, needed_base in decrements.items():
-            ing = self.session.get(Ingrediente, ing_id)
+            ing = self.ing_repo.get_with_unit(ing_id)
             if ing is None:
                 raise HTTPException(status_code=500, detail=f"Ingrediente id={ing_id} no encontrado")
             ing_simbolo = ing.unidad_medida.simbolo if ing.unidad_medida else None
@@ -124,7 +126,7 @@ class PedidoService:
 
     def _apply_ingredient_decrements(self, decrements: dict[int, float]) -> None:
         for ing_id, needed_base in decrements.items():
-            ing = self.session.get(Ingrediente, ing_id)
+            ing = self.ing_repo.get_with_unit(ing_id)
             ing_simbolo = ing.unidad_medida.simbolo if ing.unidad_medida else None
             factor = _FACTOR.get(ing_simbolo or 'u', 1.0)
             ing.stock_cantidad -= int(needed_base / factor)
@@ -136,7 +138,7 @@ class PedidoService:
             return
         decrements = self._build_ingredient_decrements(cantidades)
         for ing_id, amount in decrements.items():
-            ing = self.session.get(Ingrediente, ing_id)
+            ing = self.ing_repo.get_with_unit(ing_id)
             if ing is not None:
                 ing.stock_cantidad += int(amount)
                 self.session.add(ing)

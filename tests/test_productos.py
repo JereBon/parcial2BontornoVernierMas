@@ -12,29 +12,40 @@ _BASE = "/api/v1/productos"
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def ingrediente(client, admin_headers, unidad_id):
+def unidad_kg(client):
+    """Id de la unidad Kilogramos (unidad canónica de masa)."""
+    r = client.get("/api/v1/lookups/unidades-medida")
+    kg = next(u for u in r.json() if u["simbolo"] == "kg")
+    return kg["id"]
+
+
+@pytest.fixture
+def ingrediente(client, admin_headers, unidad_kg):
+    # precio_costo = $2000 por kg.
     r = client.post("/api/v1/ingredientes/", json={
         "nombre": "Ingrediente Prod Test",
         "es_alergeno": False,
         "stock_cantidad": 2000,
-        "unidad_medida_id": unidad_id,
+        "unidad_medida_id": unidad_kg,
+        "precio_costo": "2000.00",
     }, headers=admin_headers)
     assert r.status_code == 201, r.text
     return r.json()
 
 
 @pytest.fixture
-def producto_payload(ingrediente, unidad_id):
+def producto_payload(ingrediente, unidad_kg):
+    # 0.5 kg de insumo a $2000/kg = $1000 de costo; margen 50% -> precio 1500.
     return {
         "nombre": "Hamburguesa Test",
-        "precio_base": 800.0,
+        "margen_ganancia": "50.00",
         "descripcion": "Test burger",
         "disponible": True,
         "categorias_ids": [],
         "ingredientes": [{
             "ingrediente_id": ingrediente["id"],
-            "cantidad": "1.000",
-            "unidad_medida_id": unidad_id,
+            "cantidad": "0.500",
+            "unidad_medida_id": unidad_kg,
             "es_removible": True,
         }],
     }
@@ -108,7 +119,20 @@ class TestProductoCreate:
         r = client.post(f"{_BASE}/", json=producto_payload, headers=admin_headers)
         assert r.status_code == 201
         assert r.json()["nombre"] == producto_payload["nombre"]
-        assert r.json()["precio_base"] == producto_payload["precio_base"]
+        # precio calculado: costo 1000 (0.5kg * $2000) * (1 + 50%) = 1500
+        assert r.json()["precio_base"] == 1500.0
+
+    def test_create_calcula_precio_desde_costo_y_margen(
+        self, client, admin_headers, producto_payload
+    ):
+        # Otro caso (triangulación): margen 0% -> precio == costo
+        payload = {**producto_payload, "margen_ganancia": "0.00"}
+        r = client.post(f"{_BASE}/", json=payload, headers=admin_headers)
+        assert r.status_code == 201
+        body = r.json()
+        assert body["precio_base"] == 1000.0
+        full = client.get(f"{_BASE}/{body['id']}").json()
+        assert float(full["costo_total"]) == 1000.0
 
     def test_client_cannot_create(self, client, client_headers, producto_payload):
         r = client.post(f"{_BASE}/", json=producto_payload, headers=client_headers)
@@ -161,6 +185,28 @@ class TestProductoUpdate:
         )
         assert r.status_code == 200
         assert r.json()["imagenes_url"] == urls
+
+
+class TestPrecioAutomatico:
+    def test_cambio_de_precio_costo_recalcula_precio_producto(
+        self, client, admin_headers, producto, ingrediente
+    ):
+        # Precio inicial: costo 1000 * 1.5 = 1500
+        assert producto["precio_base"] == 1500.0
+
+        # Duplico el precio-costo del insumo: $2000 -> $4000 por kg
+        r = client.put(
+            f"/api/v1/ingredientes/{ingrediente['id']}",
+            json={"precio_costo": "4000.00"},
+            headers=admin_headers,
+        )
+        assert r.status_code == 200, r.text
+
+        # El precio del producto se actualizó solo, sin re-guardarlo:
+        # costo 2000 (0.5kg * $4000) * 1.5 = 3000
+        full = client.get(f"{_BASE}/{producto['id']}").json()
+        assert full["precio_base"] == 3000.0
+        assert float(full["costo_total"]) == 2000.0
 
 
 class TestProductoDelete:

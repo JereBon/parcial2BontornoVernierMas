@@ -134,3 +134,26 @@ class TestIngredienteDelete:
     def test_client_cannot_delete(self, client, client_headers, ingrediente):
         r = client.delete(f"{_BASE}/{ingrediente['id']}", headers=client_headers)
         assert r.status_code == 403
+
+    def test_delete_en_uso_por_producto_returns_409(
+        self, client, admin_headers, ingrediente, unidad_id
+    ):
+        # Un insumo usado en un producto no se puede eliminar (rompería el FK);
+        # el servicio debe devolver un 409 claro en vez de un 500.
+        prod_payload = {
+            "nombre": "Producto que usa el insumo",
+            "margen_ganancia": "50.00",
+            "disponible": True,
+            "categorias_ids": [],
+            "ingredientes": [{
+                "ingrediente_id": ingrediente["id"],
+                "cantidad": "1.000",
+                "unidad_medida_id": unidad_id,
+                "es_removible": False,
+            }],
+        }
+        r = client.post("/api/v1/productos/", json=prod_payload, headers=admin_headers)
+        assert r.status_code == 201, r.text
+
+        r = client.delete(f"{_BASE}/{ingrediente['id']}", headers=admin_headers)
+        assert r.status_code == 409

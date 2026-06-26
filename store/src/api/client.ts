@@ -33,7 +33,13 @@ api.interceptors.response.use(
       error.message = typeof detail === 'string' ? detail : JSON.stringify(detail);
     }
 
-    if (error.response?.status === 401 && !original?._retry) {
+    // No reintentar refresh para los propios endpoints de auth: un 401 en
+    // /auth/login es "credenciales inválidas", no una sesión expirada.
+    const isAuthEndpoint = /\/auth\/(login|register|refresh|logout)$/.test(
+      original?.url ?? '',
+    );
+
+    if (error.response?.status === 401 && !original?._retry && !isAuthEndpoint) {
       if (!original) return Promise.reject(error);
       original._retry = true;
 

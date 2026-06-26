@@ -150,9 +150,42 @@ class TestPedidoCreate:
         }, headers=admin_headers)
         admin_dir_id = r.json()["id"]
 
-        payload = {**pedido_payload, "direccion_id": admin_dir_id}
+        # La validación de dirección ajena solo aplica a pagos con entrega a
+        # domicilio (MP / Transferencia); en efectivo la dirección se ignora
+        # (retiro en local).
+        formas = client.get(f"{_LOOKUPS}/formas-pago").json()
+        transferencia = next(f for f in formas if f["codigo"] == "TRANSFERENCIA")
+
+        payload = {
+            **pedido_payload,
+            "forma_pago_id": transferencia["id"],
+            "direccion_id": admin_dir_id,
+        }
         r = client.post(f"{_PEDIDOS}/", json=payload, headers=client_user["headers"])
         assert r.status_code == 404
+
+    def test_efectivo_sin_direccion_ok(
+        self, client, client_user, forma_pago_id, producto_id
+    ):
+        # Efectivo = retiro en local: no requiere dirección.
+        r = client.post(f"{_PEDIDOS}/", json={
+            "forma_pago_id": forma_pago_id,
+            "items": [{"producto_id": producto_id, "cantidad": 1}],
+        }, headers=client_user["headers"])
+        assert r.status_code == 201, r.text
+        assert r.json()["direccion"] is None
+
+    def test_no_efectivo_sin_direccion_returns_400(
+        self, client, client_user, producto_id
+    ):
+        # A domicilio (transferencia): la dirección es obligatoria.
+        formas = client.get(f"{_LOOKUPS}/formas-pago").json()
+        transferencia = next(f for f in formas if f["codigo"] == "TRANSFERENCIA")
+        r = client.post(f"{_PEDIDOS}/", json={
+            "forma_pago_id": transferencia["id"],
+            "items": [{"producto_id": producto_id, "cantidad": 1}],
+        }, headers=client_user["headers"])
+        assert r.status_code == 400
 
     def test_create_decrements_ingredient_stock(
         self, client, client_user, pedido_payload, ingrediente_id, admin_headers

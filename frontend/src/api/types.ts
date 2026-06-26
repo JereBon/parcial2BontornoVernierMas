@@ -46,6 +46,8 @@ export interface Ingrediente {
   descripcion?: string | null;
   es_alergeno: boolean;
   stock_cantidad: number;
+  // Precio-costo por unidad canónica (kg / L / unidad). Llega como string (Decimal).
+  precio_costo: number | string;
   unidad_medida?: UnidadMedida | null;
 }
 
@@ -61,7 +63,11 @@ export interface ProductoIngredienteRead {
 export interface Producto {
   id: number;
   nombre: string;
+  // precio_base = precio de venta calculado (costo · (1 + margen%)).
   precio_base: number;
+  margen_ganancia: number | string;
+  // costo_total solo viene en el detalle (GET por id).
+  costo_total?: number | string;
   descripcion?: string | null;
   stock_disponible: number;
   disponible: boolean;
