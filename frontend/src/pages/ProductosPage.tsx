@@ -14,6 +14,30 @@ import { Pagination } from '../components/Pagination';
 
 const LIMIT = 12;
 
+// Factor a unidad canónica (masa→kg, volumen→L, contable→unidad).
+const CANON_FACTOR: Record<string, number> = {
+  g: 0.001, kg: 1, ml: 0.001, l: 1, L: 1, ud: 1, u: 1, porciones: 1,
+};
+
+// Costo de un producto a partir de sus insumos: Σ (cantidad_canónica · precio_costo).
+// Replica la lógica del backend (backend/services/pricing.py) para previsualizar
+// el precio mientras se edita, antes de guardar.
+function computeCostoProducto(
+  ingredientes: ProductoIngredienteInput[],
+  catalogo: Ingrediente[],
+  unidades: UnidadMedida[],
+): number {
+  let total = 0;
+  for (const it of ingredientes) {
+    const ing = catalogo.find((c) => c.id === it.ingrediente_id);
+    if (!ing) continue;
+    const um = unidades.find((u) => u.id === it.unidad_medida_id);
+    const factor = CANON_FACTOR[um?.simbolo ?? 'u'] ?? 1;
+    total += Number(it.cantidad) * factor * Number(ing.precio_costo ?? 0);
+  }
+  return total;
+}
+
 function collectLeaves(nodes: CategoriaTreeNode[]): CategoriaTreeNode[] {
   const leaves: CategoriaTreeNode[] = [];
   for (const n of nodes) {
@@ -28,7 +52,7 @@ function collectLeaves(nodes: CategoriaTreeNode[]): CategoriaTreeNode[] {
 
 interface FormState {
   nombre: string;
-  precio_base: number | '';
+  margen_ganancia: number | '';
   descripcion: string;
   disponible: boolean;
   categorias_ids: number[];
@@ -112,7 +136,7 @@ export default function ProductosPage() {
   const form = useForm({
     defaultValues: {
       nombre: '',
-      precio_base: '' as number | '',
+      margen_ganancia: '' as number | '',
       descripcion: '',
       disponible: true,
       categorias_ids: [],
@@ -125,7 +149,7 @@ export default function ProductosPage() {
       }
       const payload: ProductoInput = {
         nombre: value.nombre.trim(),
-        precio_base: Number(value.precio_base),
+        margen_ganancia: Number(value.margen_ganancia || 0),
         descripcion: value.descripcion.trim() || null,
         disponible: value.disponible,
         categorias_ids: value.categorias_ids,
@@ -159,7 +183,7 @@ export default function ProductosPage() {
     );
     form.reset();
     form.setFieldValue('nombre', p.nombre);
-    form.setFieldValue('precio_base', p.precio_base);
+    form.setFieldValue('margen_ganancia', Number(p.margen_ganancia ?? 0));
     form.setFieldValue('descripcion', p.descripcion ?? '');
     form.setFieldValue('disponible', p.disponible);
     form.setFieldValue('categorias_ids', p.categorias.map((c) => c.id));
@@ -284,6 +308,9 @@ export default function ProductosPage() {
                 </button>
               </div>
               <p className="text-2xl font-bold text-blue-600 mt-1">${p.precio_base.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">
+                Costo insumos: ${Number(p.costo_total ?? 0).toFixed(2)}
+              </p>
               <p className="text-xs text-gray-500 mt-1">Stock: {p.stock_disponible}</p>
               <p className="text-sm text-gray-600 mt-2 min-h-10 line-clamp-2">
                 {p.descripcion || 'Sin descripcion'}
@@ -342,13 +369,13 @@ export default function ProductosPage() {
                 </div>
               )}
             </form.Field>
-            <form.Field name="precio_base" validators={{
-              onChange: ({ value }) => (value === '' || Number(value) <= 0 ? 'Debe ser > 0' : undefined),
+            <form.Field name="margen_ganancia" validators={{
+              onChange: ({ value }) => (value === '' || Number(value) < 0 ? 'Debe ser ≥ 0' : undefined),
             }}>
               {(field) => (
                 <div className="w-36">
-                  <label className="label">Precio</label>
-                  <input type="number" step="0.01" min="0.01" className="input"
+                  <label className="label">Margen (%)</label>
+                  <input type="number" step="0.01" min="0" className="input"
                     value={field.state.value === '' ? '' : field.state.value}
                     onChange={(e) => field.handleChange(e.target.value === '' ? '' : Number(e.target.value))}
                     onBlur={field.handleBlur} onFocus={(e) => e.target.select()} />
@@ -359,6 +386,33 @@ export default function ProductosPage() {
               )}
             </form.Field>
           </div>
+
+          {/* Costo y precio calculado (a partir de los insumos + margen) */}
+          <form.Subscribe selector={(s) => [s.values.ingredientes, s.values.margen_ganancia] as const}>
+            {([ingredientes, margen]) => {
+              const costo = computeCostoProducto(
+                ingredientes,
+                ingredientesQ.data?.items ?? [],
+                unidadesQ.data ?? [],
+              );
+              // Igual que el backend: el precio de venta redondea siempre
+              // hacia arriba al múltiplo de 100 más cercano.
+              const bruto = costo * (1 + Number(margen || 0) / 100);
+              const precio = Math.ceil(bruto / 100) * 100;
+              return (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 border rounded p-3">
+                    <p className="text-xs text-gray-500">Costo de insumos</p>
+                    <p className="text-lg font-semibold text-gray-800">${costo.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                    <p className="text-xs text-blue-700">Precio de venta calculado</p>
+                    <p className="text-lg font-bold text-blue-700">${precio.toFixed(2)}</p>
+                  </div>
+                </div>
+              );
+            }}
+          </form.Subscribe>
 
           {/* Disponible */}
           <form.Field name="disponible">

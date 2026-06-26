@@ -1,7 +1,6 @@
 from fastapi import HTTPException
-from sqlmodel import Session, select, func
-from sqlalchemy.orm import selectinload
-from ..models import Usuario, UsuarioRol, Rol
+from sqlmodel import Session
+from ..models import Usuario
 from ..repositories.usuario_repository import UsuarioRepository
 from ..repositories.lookups import RolRepository
 from ..schemas.admin import UsuarioAdminCreate, UsuarioAdminUpdate, UsuarioRolesUpdate
@@ -17,28 +16,9 @@ class AdminUserService:
     def list_paginated(
         self, *, skip: int, limit: int, rol_codigo: str | None, busqueda: str | None = None
     ) -> tuple[list[Usuario], int]:
-        stmt = select(Usuario).where(Usuario.deleted_at.is_(None))
-        if rol_codigo:
-            stmt = (
-                stmt.join(UsuarioRol, UsuarioRol.usuario_id == Usuario.id)
-                .join(Rol, Rol.id == UsuarioRol.rol_id)
-                .where(Rol.codigo == rol_codigo)
-            )
-        if busqueda:
-            like = f"%{busqueda}%"
-            stmt = stmt.where(
-                (Usuario.email.ilike(like)) | (Usuario.nombre.ilike(like))
-            )
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = int(self.session.exec(count_stmt).one())
-        stmt = (
-            stmt.options(selectinload(Usuario.roles))
-            .order_by(Usuario.id)
-            .offset(skip)
-            .limit(limit)
+        return self.repo.search(
+            skip=skip, limit=limit, rol_codigo=rol_codigo, busqueda=busqueda
         )
-        items = list(self.session.exec(stmt).unique().all())
-        return (items, total)
 
     def get(self, user_id: int) -> Usuario:
         u = self.repo.get_with_roles(user_id)
@@ -65,9 +45,7 @@ class AdminUserService:
         )
         self.session.add(user)
         self.session.flush()
-        for r in roles_objs:
-            self.session.add(UsuarioRol(usuario_id=user.id, rol_id=r.id))
-        self.session.flush()
+        self.repo.add_roles(user.id, [r.id for r in roles_objs])
         return self.repo.get_with_roles(user.id)
 
     def update(self, user_id: int, payload: UsuarioAdminUpdate) -> Usuario:
@@ -90,14 +68,7 @@ class AdminUserService:
             raise HTTPException(
                 status_code=400, detail=f"Roles inexistentes: {sorted(missing)}"
             )
-        for ur in self.session.exec(
-            select(UsuarioRol).where(UsuarioRol.usuario_id == u.id)
-        ).all():
-            self.session.delete(ur)
-        self.session.flush()
-        for r in roles_objs:
-            self.session.add(UsuarioRol(usuario_id=u.id, rol_id=r.id))
-        self.session.flush()
+        self.repo.replace_roles(u.id, [r.id for r in roles_objs])
         return self.repo.get_with_roles(u.id)
 
     def soft_delete(self, user_id: int) -> None:

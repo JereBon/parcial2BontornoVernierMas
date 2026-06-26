@@ -1,6 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useCallback } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { Layout } from './components/Layout';
+import { useAuth } from './auth/AuthContext';
+import { useIdleTimeout } from './hooks/useIdleTimeout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import CategoriasPage from './pages/CategoriasPage';
@@ -12,9 +15,22 @@ import CajeroPage from './pages/CajeroPage';
 import StockPage from './pages/StockPage';
 import UsuariosPage from './pages/UsuariosPage';
 
+function IdleWatcher() {
+  const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+  const handleIdle = useCallback(async () => {
+    if (!isAuthenticated) return;
+    await logout();
+    navigate('/login', { replace: true });
+  }, [isAuthenticated, logout, navigate]);
+  useIdleTimeout(handleIdle);
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <IdleWatcher />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
 

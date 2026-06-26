@@ -12,7 +12,7 @@ class PedidoItemCreate(BaseModel):
 
 
 class PedidoCreate(BaseModel):
-    direccion_id: int = Field(..., ge=1)
+    direccion_id: Optional[int] = Field(default=None, ge=1)
     forma_pago_id: int = Field(..., ge=1)
     notas: Optional[str] = Field(default=None, max_length=500)
     items: List[PedidoItemCreate] = Field(..., min_length=1)

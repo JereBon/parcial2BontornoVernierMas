@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from '@tanstack/react-form';
+import { useStore } from '@tanstack/react-store';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { pedidosApi, type PedidoInput } from '../api/pedidos';
@@ -86,12 +87,18 @@ export default function CheckoutPage() {
     } as CheckoutForm,
     onSubmit: async ({ value }) => {
       setServerError(null);
-      if (value.direccion_id === '' || value.forma_pago_id === '') {
-        setServerError('Tenes que elegir direccion y forma de pago');
+      if (value.forma_pago_id === '') {
+        setServerError('Tenes que elegir una forma de pago');
+        return;
+      }
+      const forma = formasPagoQ.data?.find((fp) => fp.id === Number(value.forma_pago_id));
+      const esEfectivoSubmit = forma?.codigo === 'EFECTIVO';
+      if (!esEfectivoSubmit && value.direccion_id === '') {
+        setServerError('Tenes que elegir una direccion de entrega');
         return;
       }
       const input: PedidoInput = {
-        direccion_id: Number(value.direccion_id),
+        direccion_id: esEfectivoSubmit ? null : Number(value.direccion_id),
         forma_pago_id: Number(value.forma_pago_id),
         notas: value.notas.trim() || null,
         items: items.map((i) => ({
@@ -103,6 +110,10 @@ export default function CheckoutPage() {
       await createMut.mutateAsync(input);
     },
   });
+
+  const selectedFormaId = useStore(form.store, (s) => s.values.forma_pago_id);
+  const selectedForma = formasPagoQ.data?.find((fp) => fp.id === Number(selectedFormaId));
+  const esEfectivo = selectedForma?.codigo === 'EFECTIVO';
 
   useEffect(() => {
     if (form.state.values.direccion_id === '' && direccionesQ.data && direccionesQ.data.length > 0) {
@@ -138,7 +149,11 @@ export default function CheckoutPage() {
           onSubmit={(e) => { e.preventDefault(); form.handleSubmit(); }}>
           <h2 className="font-semibold">Direccion de entrega</h2>
 
-          {!hasDirecciones ? (
+          {esEfectivo ? (
+            <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded p-3 font-medium">
+              Retiro en local — no se requiere direccion de entrega
+            </div>
+          ) : !hasDirecciones ? (
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded p-3">
               No tenes direcciones cargadas.{' '}
               <Link to="/direcciones?from=checkout" className="font-semibold underline">
@@ -204,7 +219,7 @@ export default function CheckoutPage() {
           <form.Subscribe selector={(s) => [s.canSubmit, s.isSubmitting] as const}>
             {([canSubmit, isSubmitting]) => (
               <button type="submit" className="btn-primary mt-2"
-                disabled={!canSubmit || !hasDirecciones}>
+                disabled={!canSubmit || (!esEfectivo && !hasDirecciones)}>
                 {isSubmitting ? 'Procesando...' : `Confirmar pedido — $${total.toFixed(2)}`}
               </button>
             )}

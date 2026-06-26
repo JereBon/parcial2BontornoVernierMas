@@ -24,7 +24,7 @@ export function useCatalogoFeed() {
         if (unmountedRef.current) return;
         try {
           const data = JSON.parse(evt.data as string) as { event: string };
-          if (data.event === 'stock_actualizado') {
+          if (data.event === 'stock_actualizado' || data.event === 'catalogo_actualizado') {
             qc.invalidateQueries({ queryKey: ['ingredientes'] });
             qc.invalidateQueries({ queryKey: ['productos'] });
           }

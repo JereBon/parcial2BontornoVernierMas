@@ -33,6 +33,8 @@ def _serialize_full(session: Session, prod: Producto) -> dict:
         "id": prod.id,
         "nombre": prod.nombre,
         "precio_base": prod.precio_base,
+        "margen_ganancia": prod.margen_ganancia,
+        "costo_total": ProductoService(session)._costo_total(prod.id),
         "descripcion": prod.descripcion,
         "imagenes_url": prod.imagenes_url,
         "disponible": prod.disponible,
@@ -177,7 +179,7 @@ def patch_imagenes(
     session: Session = Depends(get_session),
 ):
     with UnitOfWork(session) as uow:
-        prod = uow.session.get(Producto, producto_id)
+        prod = ProductoRepository(uow.session).get(producto_id)
         if prod is None:
             from fastapi import HTTPException
             raise HTTPException(404, "Producto no encontrado")
@@ -227,7 +229,7 @@ async def patch_stock(
     session: Session = Depends(get_session),
 ):
     with UnitOfWork(session) as uow:
-        prod = uow.session.get(Producto, producto_id)
+        prod = ProductoRepository(uow.session).get(producto_id)
         if prod is None:
             from fastapi import HTTPException
             raise HTTPException(404, "Producto no encontrado")

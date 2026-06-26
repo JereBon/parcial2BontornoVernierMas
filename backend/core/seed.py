@@ -1,4 +1,6 @@
+from decimal import Decimal
 from sqlmodel import Session, select
+from ..services import pricing
 from ..models import (
     Rol,
     UsuarioRol,
@@ -181,51 +183,67 @@ def _seed_productos(sess: Session) -> None:
     ensaladas    = cat("Ensaladas",     "Frescas y livianas")
 
     # ── ingredientes ──────────────────────────────────────────────
-    def ing(nombre: str, unidad: UnidadMedida, stock: int = 100, alergeno: bool = False) -> Ingrediente:
+    # precio_costo se expresa por unidad canónica (kg para g, L para ml, ud para ud).
+    def ing(
+        nombre: str,
+        unidad: UnidadMedida,
+        stock: int = 100,
+        alergeno: bool = False,
+        precio_costo: str = "0",
+    ) -> Ingrediente:
         existing = sess.exec(select(Ingrediente).where(Ingrediente.nombre == nombre)).first()
         if existing:
             return existing
-        i = Ingrediente(nombre=nombre, unidad_medida_id=unidad.id, stock_cantidad=stock, es_alergeno=alergeno)
+        i = Ingrediente(
+            nombre=nombre,
+            unidad_medida_id=unidad.id,
+            stock_cantidad=stock,
+            es_alergeno=alergeno,
+            precio_costo=Decimal(precio_costo),
+        )
         sess.add(i)
         sess.flush()
         return i
 
-    pan_brioche      = ing("Pan brioche",              ud, stock=500,  alergeno=True)
-    carne_200        = ing("Medallón de carne 200g",    g, stock=20000)
-    carne_300        = ing("Medallón de carne 300g",    g, stock=15000)
-    queso_cheddar    = ing("Queso cheddar",             g, stock=5000, alergeno=True)
-    lechuga          = ing("Lechuga",                   g, stock=5000)
-    tomate           = ing("Tomate",                    g, stock=5000)
-    cebolla          = ing("Cebolla caramelizada",      g, stock=3000)
-    panceta          = ing("Panceta ahumada",           g, stock=3000)
-    masa_pizza       = ing("Masa de pizza",            ud, stock=200,  alergeno=True)
-    salsa_tomate     = ing("Salsa de tomate",          ml, stock=10000)
-    mozzarella       = ing("Queso mozzarella",          g, stock=8000, alergeno=True)
-    pepperoni_ing    = ing("Pepperoni",                 g, stock=3000)
-    jamon            = ing("Jamón cocido",              g, stock=4000)
-    anana            = ing("Ananá en rodajas",          g, stock=3000)
-    coca             = ing("Coca-Cola 500ml",          ml, stock=50000)
-    agua             = ing("Agua mineral 500ml",       ml, stock=60000)
-    jugo_naranja     = ing("Jugo de naranja",          ml, stock=20000)
-    brownie          = ing("Brownie de chocolate",     ud, stock=100,  alergeno=True)
-    helado_vainilla  = ing("Helado de vainilla",        g, stock=10000, alergeno=True)
-    mix_verdes       = ing("Mix de verdes",             g, stock=5000)
-    aderezo_cesar    = ing("Aderezo césar",            ml, stock=5000)
-    crutones         = ing("Crutones",                  g, stock=3000, alergeno=True)
-    pollo_grillado   = ing("Pechuga de pollo grillada", g, stock=5000)
+    pan_brioche      = ing("Pan brioche",              ud, stock=500,  alergeno=True, precio_costo="180")
+    carne_200        = ing("Medallón de carne 200g",    g, stock=20000, precio_costo="6500")
+    carne_300        = ing("Medallón de carne 300g",    g, stock=15000, precio_costo="6500")
+    queso_cheddar    = ing("Queso cheddar",             g, stock=5000, alergeno=True, precio_costo="8000")
+    lechuga          = ing("Lechuga",                   g, stock=5000, precio_costo="1500")
+    tomate           = ing("Tomate",                    g, stock=5000, precio_costo="1200")
+    cebolla          = ing("Cebolla caramelizada",      g, stock=3000, precio_costo="2200")
+    panceta          = ing("Panceta ahumada",           g, stock=3000, precio_costo="9000")
+    masa_pizza       = ing("Masa de pizza",            ud, stock=200,  alergeno=True, precio_costo="400")
+    salsa_tomate     = ing("Salsa de tomate",          ml, stock=10000, precio_costo="1500")
+    mozzarella       = ing("Queso mozzarella",          g, stock=8000, alergeno=True, precio_costo="7000")
+    pepperoni_ing    = ing("Pepperoni",                 g, stock=3000, precio_costo="10000")
+    jamon            = ing("Jamón cocido",              g, stock=4000, precio_costo="8000")
+    anana            = ing("Ananá en rodajas",          g, stock=3000, precio_costo="3000")
+    coca             = ing("Coca-Cola 500ml",          ml, stock=50000, precio_costo="1200")
+    agua             = ing("Agua mineral 500ml",       ml, stock=60000, precio_costo="600")
+    jugo_naranja     = ing("Jugo de naranja",          ml, stock=20000, precio_costo="2000")
+    brownie          = ing("Brownie de chocolate",     ud, stock=100,  alergeno=True, precio_costo="500")
+    helado_vainilla  = ing("Helado de vainilla",        g, stock=10000, alergeno=True, precio_costo="4000")
+    mix_verdes       = ing("Mix de verdes",             g, stock=5000, precio_costo="3000")
+    aderezo_cesar    = ing("Aderezo césar",            ml, stock=5000, precio_costo="2500")
+    crutones         = ing("Crutones",                  g, stock=3000, alergeno=True, precio_costo="4000")
+    pollo_grillado   = ing("Pechuga de pollo grillada", g, stock=5000, precio_costo="7000")
 
     # ── helper para crear producto ────────────────────────────────
+    # El precio_base se CALCULA desde el costo de los insumos y el margen (%).
     def prod(
         nombre: str,
-        precio: float,
+        precio: float,  # ignorado: se calcula desde costo + margen
         descripcion: str,
         categoria: Categoria,
         ingredientes: list,   # [(Ingrediente, cantidad_float, UnidadMedida)]
         stock: int = 50,
+        margen: str = "120",
     ) -> Producto:
         p = Producto(
             nombre=nombre,
-            precio_base=precio,
+            precio_base=0,
+            margen_ganancia=Decimal(margen),
             descripcion=descripcion,
             disponible=True,
             stock_cantidad=stock,
@@ -233,6 +251,7 @@ def _seed_productos(sess: Session) -> None:
         sess.add(p)
         sess.flush()
         sess.add(ProductoCategoria(producto_id=p.id, categoria_id=categoria.id))
+        costo = Decimal("0")
         for ingrediente, cantidad, unidad in ingredientes:
             sess.add(ProductoIngrediente(
                 producto_id=p.id,
@@ -241,6 +260,11 @@ def _seed_productos(sess: Session) -> None:
                 unidad_medida_id=unidad.id,
                 es_removible=True,
             ))
+            costo += pricing.to_canonical(
+                Decimal(str(cantidad)), unidad.simbolo
+            ) * Decimal(ingrediente.precio_costo)
+        p.precio_base = float(pricing.precio_venta(costo, p.margen_ganancia))
+        sess.add(p)
         sess.flush()
         return p
 

@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi, type LoginPayload, type RegisterPayload } from '../api/auth';
 import type { Usuario } from '../api/types';
 import { useAuthStore } from '../stores/authStore';
+import { useCartStore } from '../stores/cartStore';
 import { registerAuthFailureHandler } from '../api/client';
 
 // ── Hydration provider ────────────────────────────────────────────────────────
@@ -113,6 +114,7 @@ export function useAuth(): AuthContextValue {
   const logoutMut = useMutation({
     mutationFn: authApi.logout,
     onSuccess: () => {
+      useCartStore.getState().clear();
       clearAuth();
       qc.setQueryData(['auth', 'me'], null);
       qc.removeQueries({ queryKey: ['pedidos'] });

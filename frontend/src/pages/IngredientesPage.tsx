@@ -73,6 +73,7 @@ export default function IngredientesPage() {
       es_alergeno: false,
       stock_cantidad: 0 as number,
       unidad_medida_id: '' as number | '',
+      precio_costo: 0 as number,
     },
     onSubmit: async ({ value }) => {
       if (value.unidad_medida_id === '') {
@@ -85,6 +86,7 @@ export default function IngredientesPage() {
         es_alergeno: value.es_alergeno,
         stock_cantidad: Math.max(0, Math.floor(value.stock_cantidad)),
         unidad_medida_id: Number(value.unidad_medida_id),
+        precio_costo: Math.max(0, Number(value.precio_costo)),
       };
       if (editing) await updateMut.mutateAsync({ id: editing.id, input: payload });
       else await createMut.mutateAsync(payload);
@@ -105,6 +107,7 @@ export default function IngredientesPage() {
     form.setFieldValue('es_alergeno', i.es_alergeno);
     form.setFieldValue('stock_cantidad', i.stock_cantidad);
     form.setFieldValue('unidad_medida_id', i.unidad_medida?.id ?? '');
+    form.setFieldValue('precio_costo', Number(i.precio_costo ?? 0));
     setIsModalOpen(true);
   };
 
@@ -149,6 +152,7 @@ export default function IngredientesPage() {
                 <th className="table-head w-16">ID</th>
                 <th className="table-head">Nombre</th>
                 <th className="table-head w-36 text-center">Stock</th>
+                <th className="table-head w-40 text-right">Precio-costo</th>
                 <th className="table-head w-24 text-center">Alérgeno</th>
                 <th className="table-head w-48 text-right">Acciones</th>
               </tr>
@@ -171,6 +175,16 @@ export default function IngredientesPage() {
                       )}
                     </span>
                   </td>
+                  <td className="table-cell text-right">
+                    <span className="text-gray-800">
+                      ${Number(i.precio_costo ?? 0).toFixed(2)}
+                      {i.unidad_medida && (
+                        <span className="text-gray-400 text-xs font-normal">
+                          {' '}/ {i.unidad_medida.tipo === 'masa' ? 'kg' : i.unidad_medida.tipo === 'volumen' ? 'L' : 'ud'}
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="table-cell text-center">
                     {i.es_alergeno ? (
                       <span className="text-xs font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded">⚠ Sí</span>
@@ -186,7 +200,7 @@ export default function IngredientesPage() {
               ))}
               {listQ.data?.items.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="table-cell text-center text-gray-500 py-8">Sin resultados.</td>
+                  <td colSpan={6} className="table-cell text-center text-gray-500 py-8">Sin resultados.</td>
                 </tr>
               )}
             </tbody>
@@ -298,6 +312,37 @@ export default function IngredientesPage() {
               )}
             </form.Field>
           </div>
+
+          <form.Subscribe selector={(s) => s.values.unidad_medida_id}>
+            {(unidadId) => {
+              const u = unidades.find((x) => x.id === Number(unidadId));
+              const canon = u?.tipo === 'masa' ? 'kg' : u?.tipo === 'volumen' ? 'L' : 'unidad';
+              return (
+                <form.Field name="precio_costo">
+                  {(field) => (
+                    <div className="w-48">
+                      <label htmlFor={field.name} className="label">
+                        Precio-costo (por {canon})
+                      </label>
+                      <input
+                        id={field.name}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="input"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(Math.max(0, Number(e.target.value)))}
+                        onFocus={(e) => e.target.select()}
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        Costo del insumo por {canon}. Se usa para calcular el precio de los productos.
+                      </p>
+                    </div>
+                  )}
+                </form.Field>
+              );
+            }}
+          </form.Subscribe>
 
           <div className="flex justify-end gap-2 pt-4 border-t">
             <button type="button" className="btn-secondary" onClick={closeModal}>Cancelar</button>

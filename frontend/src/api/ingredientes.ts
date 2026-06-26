@@ -7,6 +7,8 @@ export interface IngredienteInput {
   es_alergeno: boolean;
   stock_cantidad: number;
   unidad_medida_id: number;
+  // Precio-costo por unidad canónica (kg / L / unidad).
+  precio_costo: number;
 }
 
 export const ingredientesApi = {

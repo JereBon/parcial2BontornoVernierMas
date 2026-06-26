@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useAdminOrdersFeed } from '../hooks/useAdminOrdersFeed';
+import { useCatalogoFeed } from '../hooks/useCatalogoFeed';
 
 interface NavItem {
   to: string;
@@ -23,6 +24,7 @@ export function Layout() {
   const { user, logout, hasAnyRole, roleCodes } = useAuth();
   const navigate = useNavigate();
   const { connected } = useAdminOrdersFeed();
+  useCatalogoFeed();
 
   const visibleNav = NAV.filter((item) => !item.roles || hasAnyRole(...item.roles));
 

@@ -10,7 +10,8 @@ export interface ProductoIngredienteInput {
 
 export interface ProductoInput {
   nombre: string;
-  precio_base: number;
+  // El precio de venta se calcula desde el costo de insumos y el margen.
+  margen_ganancia: number;
   descripcion?: string | null;
   disponible: boolean;
   categorias_ids: number[];

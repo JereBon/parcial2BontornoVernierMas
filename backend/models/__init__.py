@@ -73,6 +73,11 @@ class Ingrediente(SQLModel, table=True):
     nombre: str = Field(index=True, max_length=100, unique=True)
     stock_cantidad: int = Field(default=0, ge=0)
     unidad_medida_id: Optional[int] = Field(default=None, foreign_key="unidad_medida.id")
+    # Precio-costo del insumo por su unidad canónica (kg / L / unidad).
+    precio_costo: Decimal = Field(
+        default=Decimal("0"),
+        sa_column=Column(Numeric(12, 2), nullable=False, server_default="0"),
+    )
     descripcion: Optional[str] = Field(default=None)
     es_alergeno: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -84,7 +89,13 @@ class Producto(SQLModel, table=True):
     __tablename__ = "producto"
     id: Optional[int] = Field(default=None, primary_key=True)
     nombre: str = Field(index=True, max_length=150)
+    # precio_base = precio de venta CALCULADO desde el costo de insumos y el margen.
     precio_base: float = Field(ge=0)
+    # Margen de ganancia (%) por producto: precio_venta = costo · (1 + margen/100).
+    margen_ganancia: Decimal = Field(
+        default=Decimal("0"),
+        sa_column=Column(Numeric(6, 2), nullable=False, server_default="0"),
+    )
     descripcion: Optional[str] = Field(default=None)
     imagenes_url: Optional[List[str]] = Field(
         default=None,

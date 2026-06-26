@@ -8,7 +8,7 @@ export interface PedidoItemInput {
 }
 
 export interface PedidoInput {
-  direccion_id: number;
+  direccion_id?: number | null;
   forma_pago_id: number;
   notas?: string | null;
   items: PedidoItemInput[];

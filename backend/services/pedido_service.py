@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from sqlmodel import Session
 from ..models import Usuario, Producto, Ingrediente
 from ..models.rol import RolCodigo
+from ..models.forma_pago import FormaPagoCodigo
 from ..models.pedido import Pedido, DetallePedido, HistorialEstadoPedido
 from ..models.estado_pedido import (
     EstadoPedidoCodigo,
@@ -12,6 +13,7 @@ from ..models.estado_pedido import (
 from ..repositories.pedido_repository import PedidoRepository
 from ..repositories.producto_repository import ProductoRepository, _to_base, _FACTOR
 from ..repositories.direccion_repository import DireccionRepository
+from ..repositories.ingrediente_repository import IngredienteRepository
 from ..repositories.historial_pedido_repository import HistorialEstadoPedidoRepository
 from ..repositories.lookups import EstadoPedidoRepository, FormaPagoRepository
 from ..schemas.pedido import PedidoCreate
@@ -27,6 +29,7 @@ class PedidoService:
         self.repo = PedidoRepository(session)
         self.prod_repo = ProductoRepository(session)
         self.dir_repo = DireccionRepository(session)
+        self.ing_repo = IngredienteRepository(session)
         self.estado_repo = EstadoPedidoRepository(session)
         self.forma_pago_repo = FormaPagoRepository(session)
         self.historial_repo = HistorialEstadoPedidoRepository(session)
@@ -109,7 +112,7 @@ class PedidoService:
 
     def _check_ingredient_stock(self, decrements: dict[int, float]) -> None:
         for ing_id, needed_base in decrements.items():
-            ing = self.session.get(Ingrediente, ing_id)
+            ing = self.ing_repo.get_with_unit(ing_id)
             if ing is None:
                 raise HTTPException(status_code=500, detail=f"Ingrediente id={ing_id} no encontrado")
             ing_simbolo = ing.unidad_medida.simbolo if ing.unidad_medida else None
@@ -123,7 +126,7 @@ class PedidoService:
 
     def _apply_ingredient_decrements(self, decrements: dict[int, float]) -> None:
         for ing_id, needed_base in decrements.items():
-            ing = self.session.get(Ingrediente, ing_id)
+            ing = self.ing_repo.get_with_unit(ing_id)
             ing_simbolo = ing.unidad_medida.simbolo if ing.unidad_medida else None
             factor = _FACTOR.get(ing_simbolo or 'u', 1.0)
             ing.stock_cantidad -= int(needed_base / factor)
@@ -135,7 +138,7 @@ class PedidoService:
             return
         decrements = self._build_ingredient_decrements(cantidades)
         for ing_id, amount in decrements.items():
-            ing = self.session.get(Ingrediente, ing_id)
+            ing = self.ing_repo.get_with_unit(ing_id)
             if ing is not None:
                 ing.stock_cantidad += int(amount)
                 self.session.add(ing)
@@ -145,14 +148,23 @@ class PedidoService:
             raise HTTPException(
                 status_code=400, detail="El pedido debe tener al menos un item"
             )
-        direccion = self.dir_repo.get_for_user(payload.direccion_id, user.id)
-        if direccion is None:
-            raise HTTPException(
-                status_code=404, detail="Direccion no encontrada o no te pertenece"
-            )
         forma = self.forma_pago_repo.get(payload.forma_pago_id)
         if forma is None:
             raise HTTPException(status_code=404, detail="Forma de pago no encontrada")
+
+        es_efectivo = forma.codigo == FormaPagoCodigo.EFECTIVO.value
+        if es_efectivo:
+            direccion = None
+        else:
+            if payload.direccion_id is None:
+                raise HTTPException(
+                    status_code=400, detail="Se requiere direccion de entrega para esta forma de pago"
+                )
+            direccion = self.dir_repo.get_for_user(payload.direccion_id, user.id)
+            if direccion is None:
+                raise HTTPException(
+                    status_code=404, detail="Direccion no encontrada o no te pertenece"
+                )
 
         productos: dict[int, Producto] = {}
         cantidades_por_prod: dict[int, int] = {}
@@ -205,7 +217,7 @@ class PedidoService:
             usuario_id=user.id,
             estado_id=estado_pendiente_id,
             forma_pago_id=forma.id,
-            direccion_id=direccion.id,
+            direccion_id=direccion.id if direccion else None,
             subtotal=subtotal,
             descuento=descuento,
             costo_envio=costo_envio,

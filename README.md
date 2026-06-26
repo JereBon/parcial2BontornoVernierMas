@@ -214,6 +214,7 @@ CLOUDINARY_API_SECRET=
 - Auth con cookie JWT HttpOnly + refresh token en cookie.
 - RBAC con 4 roles: `ADMIN`, `STOCK`, `PEDIDOS`, `CLIENT`.
 - Catálogo: categorías jerárquicas + ingredientes con `es_alergeno` + productos con `stock_cantidad` / `disponible`.
+- **Costeo automático**: cada insumo tiene `precio_costo` por unidad canónica (kg / L / unidad). El precio de venta del producto se **calcula** como `costo_de_insumos · (1 + margen_de_ganancia%)` (margen configurable por producto). Al cambiar el precio-costo de un insumo se **recalcula automáticamente** el precio de todos los productos que lo usan y se notifica por WebSocket (el catálogo se actualiza sin refrescar).
 - Pedidos con máquina de estados (PENDIENTE → CONFIRMADO → EN_PREP → ENTREGADO / CANCELADO).
 - Stock se descuenta al crear pedido y se restaura al cancelar.
 - Snapshot Pattern en items del pedido (guarda nombre y precio al momento de la compra).
@@ -245,7 +246,7 @@ CLOUDINARY_API_SECRET=
 | Patrón | Implementación |
 |---|---|
 | Unit of Work | `backend/uow/unit_of_work.py`. Único lugar que ejecuta commit/rollback. |
-| Repository | `BaseRepository[T]` genérico + repos específicos. Soft delete y eager loading transparentes. |
+| Repository | `BaseRepository[T]` genérico + repos específicos. Soft delete y eager loading transparentes. **Todas las consultas a la DB viven exclusivamente en esta capa**: services y routers nunca ejecutan `select`/`session.get` directo. |
 | Service Layer | Lógica de negocio en `backend/services/`. Routers solo orquestan. |
 | Soft Delete | Campo `deleted_at` en todas las entidades de negocio. |
 | Snapshot Pattern | `DetallePedido` copia nombre y precio al crear el pedido. |

@@ -56,13 +56,15 @@ def create(payload: IngredienteCreate, session: Session = Depends(get_session)):
     response_model=IngredienteRead,
     dependencies=[Depends(_admin_only)],
 )
-def update(
+async def update(
     ingrediente_id: Annotated[int, Path(ge=1)],
     payload: IngredienteUpdate,
     session: Session = Depends(get_session),
 ):
     with UnitOfWork(session) as uow:
-        return IngredienteService(uow.session).update(ingrediente_id, payload)
+        result = IngredienteService(uow.session).update(ingrediente_id, payload)
+    await ws_manager.broadcast_catalogo({"event": "stock_actualizado"})
+    return result
 
 
 @router.patch(
